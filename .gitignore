@@ -1,1 +1,4 @@
 .env
+
+# 托管用户元数据（JSON）仅保留在本机，不提交到仓库
+managed_users/
