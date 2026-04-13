@@ -116,6 +116,7 @@ user_management/
 |------|------|
 | `HOSTNAME` | 用于生成 SSH Config 的 `Host` 名：`<username>-<HOSTNAME>`（覆盖系统 `hostname` 时可显式设置） |
 | `UM_HOME_PARENT` | 创建用户时默认 home 父目录（默认 `/home`）；默认 home 会变成 `${UM_HOME_PARENT}/<username>` |
+| `UM_DEPLOY_SCRIPTS_DEFAULT` | 创建用户时默认是否部署 `~/scripts`（复制 `templates/` 并写入 `.bashrc` proxy 段），默认 `true` |
 
 ---
 

@@ -24,5 +24,8 @@ HOST_NAME="${HOSTNAME:-$(hostname)}"
 UM_HOME_PARENT="${UM_HOME_PARENT:-/home}"
 UM_HOME_PARENT="${UM_HOME_PARENT%/}"
 
+# 新建用户默认是否部署 ~/scripts（复制 templates/ 并写入 proxy 段）
+UM_DEPLOY_SCRIPTS_DEFAULT="${UM_DEPLOY_SCRIPTS_DEFAULT:-true}"
+
 ESCAPE_KEY=$'\e'
 BACK_ESCAPE=$'^[['

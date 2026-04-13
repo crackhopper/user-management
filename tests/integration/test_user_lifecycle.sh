@@ -45,6 +45,7 @@ SELECTED_IP="127.0.0.1"
 HOME_DIR="${UM_HOME_PARENT:-/home}/$TEST_USER"
 HAS_SUDO="false"
 HAS_DOCKER="false"
+DEPLOY_SCRIPTS="true"
 
 cleanup() {
     if id "$TEST_USER" &>/dev/null; then
@@ -56,7 +57,7 @@ trap cleanup EXIT
 
 echo ">>> create $TEST_USER ..."
 um_create_managed_user "$TEST_USER" "$TEST_PASS" "$HOME_DIR" "$HAS_SUDO" "$HAS_DOCKER" \
-    "$FAKE_PUB" "$KEY_TYPE" "$KEY_INF" "$SELECTED_IP" "$SSH_PORT"
+    "$FAKE_PUB" "$KEY_TYPE" "$KEY_INF" "$SELECTED_IP" "$SSH_PORT" "$DEPLOY_SCRIPTS"
 
 [[ -n "$UM_CREATED_JSON_FILE" ]] || _fail "UM_CREATED_JSON_FILE empty"
 [[ -f "$UM_CREATED_JSON_FILE" ]] || _fail "json not created: $UM_CREATED_JSON_FILE"

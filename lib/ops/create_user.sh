@@ -1,6 +1,6 @@
 # lib/ops/create_user.sh — 创建托管用户（无交互；依赖已 source 的 lib/config.sh）
 # -----------------------------------------------------------------------------
-# um_create_managed_user：执行 useradd、sudoers、docker、SSH、templates、JSON
+# um_create_managed_user：执行 useradd、sudoers、docker、SSH、(可选)deploy scripts/proxy、JSON
 # 输出：UM_CREATED_JSON_FILE、UM_SSH_CONFIG_SNIPPET
 # 标记与 sed 锚点使用 config 中的 UM_PROXY_BEGIN / UM_PROXY_END
 # -----------------------------------------------------------------------------
@@ -16,6 +16,7 @@ um_create_managed_user() {
     local key_type_inferred="$8"
     local selected_ip="$9"
     local ssh_port="${10}"
+    local deploy_scripts="${11:-true}"
 
     UM_CREATED_JSON_FILE=""
     UM_SSH_CONFIG_SNIPPET=""
@@ -46,16 +47,18 @@ um_create_managed_user() {
     sudo chmod 600 "$home_dir/.ssh/authorized_keys"
     sudo chown -R "$username:$username" "$home_dir/.ssh"
 
-    sudo cp -r "$SCRIPTS_SRC" "$home_dir/scripts"
-    sudo chown -R "$username:$username" "$home_dir/scripts"
+    if [[ "$deploy_scripts" == "true" ]]; then
+        sudo cp -r "$SCRIPTS_SRC" "$home_dir/scripts"
+        sudo chown -R "$username:$username" "$home_dir/scripts"
 
-    if [[ -f "$SCRIPTS_SRC/proxy.sh" ]]; then
-        {
-            echo ""
-            echo "$UM_PROXY_BEGIN"
-            cat "$SCRIPTS_SRC/proxy.sh"
-            echo "$UM_PROXY_END"
-        } | sudo tee -a "$home_dir/.bashrc" > /dev/null
+        if [[ -f "$SCRIPTS_SRC/proxy.sh" ]]; then
+            {
+                echo ""
+                echo "$UM_PROXY_BEGIN"
+                cat "$SCRIPTS_SRC/proxy.sh"
+                echo "$UM_PROXY_END"
+            } | sudo tee -a "$home_dir/.bashrc" > /dev/null
+        fi
     fi
 
     local ssh_host_name="${username}-${HOST_NAME}"

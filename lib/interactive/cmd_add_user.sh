@@ -34,6 +34,19 @@ cmd_add() {
     [[ "$home_dir" == $'\e' ]] && return
     home_dir="${home_dir:-$default_home}"
 
+    local deploy_scripts_default="y"
+    if [[ "${UM_DEPLOY_SCRIPTS_DEFAULT:-true}" != "true" ]]; then
+        deploy_scripts_default="N"
+    fi
+    read -p "是否部署 scripts（复制 templates/ 并写入 proxy 段） [y/${deploy_scripts_default}]: " deploy_scripts_in
+    [[ "$deploy_scripts_in" == $'\e' ]] && return
+    local deploy_scripts_flag="${UM_DEPLOY_SCRIPTS_DEFAULT:-true}"
+    if [[ "$deploy_scripts_in" =~ ^[Yy]$ ]]; then
+        deploy_scripts_flag=true
+    elif [[ "$deploy_scripts_in" =~ ^[Nn]$ ]]; then
+        deploy_scripts_flag=false
+    fi
+
     read -p "是否启用 sudo（NOPASSWD，/etc/sudoers.d，非 sudo 组） [y/N]: " has_sudo
     [[ "$has_sudo" == $'\e' ]] && return
     has_sudo_flag=false
@@ -76,7 +89,7 @@ cmd_add() {
     fi
 
     um_create_managed_user "$username" "$password" "$home_dir" "$has_sudo_flag" "$has_docker_flag" \
-        "$authorized_keys" "$key_type" "$key_type_inferred" "$selected_ip" "$ssh_port"
+        "$authorized_keys" "$key_type" "$key_type_inferred" "$selected_ip" "$ssh_port" "$deploy_scripts_flag"
 
     echo
     echo "=========================================="
