@@ -19,6 +19,7 @@ if [[ -f "$SCRIPT_DIR/.env" ]]; then
     set +a
 fi
 HOST_NAME="${HOSTNAME:-$(hostname)}"
+HOST_IP="${HOST_IP:-}"
 
 # 新建用户默认 home 父目录（例如 /home 或 /data/home）
 UM_HOME_PARENT="${UM_HOME_PARENT:-/home}"

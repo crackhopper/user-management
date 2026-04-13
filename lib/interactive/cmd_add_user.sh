@@ -72,14 +72,18 @@ cmd_add() {
     key_type="${key_type:-$default_key_type}"
     key_type_inferred=$([[ "$key_type" == "$default_key_type" ]] && echo "true" || echo "false")
 
-    available_ips=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '^127\.' | head -5)
-    echo "选择登录IP:"
-    select ip in $available_ips; do
-        if [[ -n "$ip" ]]; then
-            selected_ip="$ip"
-            break
-        fi
-    done 2>/dev/null || selected_ip="127.0.0.1"
+    if [[ -n "${HOST_IP:-}" ]]; then
+        selected_ip="$HOST_IP"
+    else
+        available_ips=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '^127\.' | head -5)
+        echo "选择登录IP:"
+        select ip in $available_ips; do
+            if [[ -n "$ip" ]]; then
+                selected_ip="$ip"
+                break
+            fi
+        done 2>/dev/null || selected_ip="127.0.0.1"
+    fi
 
     ssh_port=$(grep ^Port /etc/ssh/sshd_config 2>/dev/null | awk '{print $2}' || echo "22")
 

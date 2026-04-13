@@ -47,8 +47,12 @@ _um_ensure_stub_unmanaged_json() {
     local home ssh_port selected_ip tmp_auth
     home=$(getent passwd "$username" | cut -d: -f6)
     ssh_port=$(grep ^Port /etc/ssh/sshd_config 2>/dev/null | awk '{print $2}' || echo "22")
-    selected_ip=$(ip -4 addr show 2>/dev/null | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '^127\.' | head -1)
-    selected_ip="${selected_ip:-127.0.0.1}"
+    if [[ -n "${HOST_IP:-}" ]]; then
+        selected_ip="$HOST_IP"
+    else
+        selected_ip=$(ip -4 addr show 2>/dev/null | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '^127\.' | head -1)
+        selected_ip="${selected_ip:-127.0.0.1}"
+    fi
 
     tmp_auth=$(mktemp)
     if sudo test -f "$home/.ssh/authorized_keys"; then

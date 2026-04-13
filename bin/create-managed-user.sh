@@ -68,12 +68,16 @@ key_type="${key_type:-$default_key_type}"
 key_type_inferred=$([[ "$key_type" == "$default_key_type" ]] && echo "true" || echo "false")
 
 echo "选择登录IP:"
-select ip in $available_ips; do
-    if [[ -n "$ip" ]]; then
-        selected_ip="$ip"
-        break
-    fi
-done
+if [[ -n "${HOST_IP:-}" ]]; then
+    selected_ip="$HOST_IP"
+else
+    select ip in $available_ips; do
+        if [[ -n "$ip" ]]; then
+            selected_ip="$ip"
+            break
+        fi
+    done
+fi
 
 if id "$username" &>/dev/null; then
     echo "用户 $username 已存在，退出"
