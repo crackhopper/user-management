@@ -40,6 +40,14 @@ _other_user_menu() {
     local username="$1"
     local json_file="$2"
 
+    if [[ ! -f "$json_file" ]]; then
+        if ! _um_ensure_stub_unmanaged_json "$username"; then
+            read -p "按回车继续..." _
+            return
+        fi
+        json_file="$MANAGED_USERS_DIR/${username}.json"
+    fi
+
     _load_user_data "$json_file"
 
     while true; do

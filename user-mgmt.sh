@@ -15,6 +15,8 @@ source "$SCRIPT_DIR/lib/config.sh"
 source "$SCRIPT_DIR/lib/json_user_state.sh"
 # shellcheck source=lib/user_json_parse.sh
 source "$SCRIPT_DIR/lib/user_json_parse.sh"
+# shellcheck source=lib/stub_unmanaged_user.sh
+source "$SCRIPT_DIR/lib/stub_unmanaged_user.sh"
 # shellcheck source=lib/ops/create_user.sh
 source "$SCRIPT_DIR/lib/ops/create_user.sh"
 # shellcheck source=lib/ops/delete_user.sh

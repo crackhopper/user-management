@@ -51,6 +51,8 @@ d['docker'] = 'docker' in gs
 
 if mode == 'sync':
     d['last_synced'] = datetime.now().astimezone().isoformat(timespec='seconds')
+    if 'managed' not in d:
+        d['managed'] = True
 elif mode == 'track':
     d['managed'] = True
 

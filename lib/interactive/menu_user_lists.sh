@@ -1,6 +1,7 @@
 # lib/interactive/menu_user_lists.sh — 列出「已管理 / 未管理」用户并进入子菜单
 # -----------------------------------------------------------------------------
-# 依赖：MANAGED_USERS_DIR；会调用 _user_action_menu / _other_user_menu（在 menu_user_actions 中定义）
+# 依赖：MANAGED_USERS_DIR、_um_passwd_local_usernames；会调用 _user_action_menu / _other_user_menu
+# 未管理 = JSON 中 managed:false，或尚无 JSON 的本地 UID 用户（见 lib/stub_unmanaged_user.sh）
 # -----------------------------------------------------------------------------
 
 _list_managed_users() {
@@ -80,6 +81,15 @@ _list_other_users() {
         users+=("$username")
         json_files+=("$json_file")
     done
+
+    while IFS= read -r pname; do
+        [[ -z "$pname" ]] && continue
+        if [[ -f "$MANAGED_USERS_DIR/${pname}.json" ]]; then
+            continue
+        fi
+        users+=("$pname")
+        json_files+=("$MANAGED_USERS_DIR/${pname}.json")
+    done < <(_um_passwd_local_usernames | sort -u)
 
     if [[ ${#users[@]} -eq 0 ]]; then
         echo "没有未管理用户"

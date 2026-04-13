@@ -37,6 +37,7 @@
 | `lib/paths.sh` | `um_project_root_from_bin_path`：`bin/` 下脚本解析仓库根 |
 | `lib/json_user_state.sh` | `_merge_json_sudo_from_system`：用 python3 将 JSON 与系统 sudo/docker 状态对齐 |
 | `lib/user_json_parse.sh` | `_load_user_data`：从单用户 JSON 解析字段到 shell 变量 |
+| `lib/stub_unmanaged_user.sh` | 列出本地 passwd 用户、为无 JSON 者生成 `managed: false` 占位文件 |
 | `lib/ops/create_user.sh` | `um_create_managed_user`：非交互创建用户 |
 | `lib/ops/delete_user.sh` | `um_delete_managed_user`：非交互删除用户 |
 | `lib/interactive/cmd_add_user.sh` | `cmd_add`：交互创建用户 |
@@ -55,7 +56,7 @@
 |--------|------|
 | 新建用户 | 创建系统用户、SSH、`scripts`、proxy 段、写入 JSON |
 | 已管理用户 | 选择用户后可：查看、删除、进入登录 shell、修改（同步 scripts/proxy、启用/禁用 sudo） |
-| 未管理用户 | JSON 中 `managed: false` 的用户：查看、**纳入管理 (track)** |
+| 未管理用户 | JSON 中 `managed: false` 的用户，以及 **尚无** `managed_users/<名>.json` 的本地 UID 用户（`UID_MIN` 起、非 nologin/false shell）：查看、**纳入管理 (track)**；进入菜单时若无 JSON 会生成 `managed: false` 的占位记录 |
 
 ---
 
