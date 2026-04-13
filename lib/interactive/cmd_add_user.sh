@@ -29,7 +29,7 @@ cmd_add() {
         [[ "$password" == $'\e' ]] && return
     done
 
-    default_home="/home/$username"
+    default_home="${UM_HOME_PARENT:-/home}/$username"
     read -p "home目录 [$default_home]: " home_dir
     [[ "$home_dir" == $'\e' ]] && return
     home_dir="${home_dir:-$default_home}"

@@ -115,6 +115,7 @@ user_management/
 | 变量 | 说明 |
 |------|------|
 | `HOSTNAME` | 用于生成 SSH Config 的 `Host` 名：`<username>-<HOSTNAME>`（覆盖系统 `hostname` 时可显式设置） |
+| `UM_HOME_PARENT` | 创建用户时默认 home 父目录（默认 `/home`）；默认 home 会变成 `${UM_HOME_PARENT}/<username>` |
 
 ---
 

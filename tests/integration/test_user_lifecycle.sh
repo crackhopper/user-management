@@ -42,7 +42,7 @@ KEY_TYPE="id_ed25519"
 KEY_INF="true"
 SSH_PORT=$(grep ^Port /etc/ssh/sshd_config 2>/dev/null | awk '{print $2}' || echo "22")
 SELECTED_IP="127.0.0.1"
-HOME_DIR="/home/$TEST_USER"
+HOME_DIR="${UM_HOME_PARENT:-/home}/$TEST_USER"
 HAS_SUDO="false"
 HAS_DOCKER="false"
 

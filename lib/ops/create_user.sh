@@ -25,6 +25,10 @@ um_create_managed_user() {
     echo "         开始创建用户..."
     echo "=========================================="
 
+    local home_parent
+    home_parent="$(dirname "$home_dir")"
+    sudo mkdir -p "$home_parent"
+
     sudo useradd -m -d "$home_dir" -s /bin/bash "$username"
     echo "$username:$password" | sudo chpasswd
 
