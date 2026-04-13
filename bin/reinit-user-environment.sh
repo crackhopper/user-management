@@ -1,21 +1,17 @@
 #!/bin/bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-SCRIPTS_SRC="$PROJECT_ROOT/user_scripts"
-MANAGED_USERS_DIR="$PROJECT_ROOT/managed_users"
-
-if [[ -f "$PROJECT_ROOT/.env" ]]; then
-    set -a
-    source "$PROJECT_ROOT/.env"
-    set +a
-fi
+_bin_here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/paths.sh
+source "$_bin_here/../lib/paths.sh"
+SCRIPT_DIR="$(um_project_root_from_bin_path "${BASH_SOURCE[0]}")"
+# shellcheck source=../lib/config.sh
+source "$SCRIPT_DIR/lib/config.sh"
 
 usage() {
     echo "用法: $0"
     echo "  从 managed_users 列出用户，选择编号后重新初始化："
-    echo "  - 将 user_scripts 同步到 ~/scripts（覆盖旧内容）"
+    echo "  - 将 templates 同步到 ~/scripts（覆盖旧内容）"
     echo "  - 更新 ~/.bashrc 中 user_management proxy 段（与当前 proxy.sh 一致）"
 }
 
@@ -32,14 +28,14 @@ reinit_one() {
     if [[ -f "$SCRIPTS_SRC/proxy.sh" ]]; then
         echo "更新 $bashrc 中的 proxy 段 ..."
         if [[ -f "$bashrc" ]]; then
-            sudo sed -i '\|# BEGIN user_management proxy (user_scripts/proxy.sh)|,|# END user_management proxy|d' "$bashrc"
+            sudo sed -i '\|# BEGIN user_management proxy (templates/proxy.sh)|,|# END user_management proxy|d' "$bashrc"
         else
             sudo touch "$bashrc"
             sudo chown "$username:$username" "$bashrc"
         fi
         {
             echo ""
-            echo "# BEGIN user_management proxy (user_scripts/proxy.sh)"
+            echo "# BEGIN user_management proxy (templates/proxy.sh)"
             cat "$SCRIPTS_SRC/proxy.sh"
             echo "# END user_management proxy"
         } | sudo tee -a "$bashrc" > /dev/null

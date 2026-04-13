@@ -1,4 +1,6 @@
-# Scripts
+# templates（部署到用户 `~/scripts/`）
+
+仓库中目录名为 `templates/`；由 `user-mgmt.sh` 或 `bin/` 脚本复制到目标用户的 `~/scripts/` 后，下列路径中的 `scripts/` 即指该目录。
 
 ## setup-dev-env.sh
 

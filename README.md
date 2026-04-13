@@ -23,7 +23,29 @@
 | `add` | 与菜单中「新建用户」相同，创建用户 |
 | `help` / `--help` / `-h` | 打印帮助 |
 
-> **说明：** 删除、列表、sudo、重新初始化等能力集中在交互菜单或 `manager_scripts/` 下的独立脚本中；当前入口脚本 **未** 将 `delete`、`list` 等映射为 `./user-mgmt.sh <command>` 形式（与仅含 `add` 的 CLI 一致即可）。
+> **说明：** 删除、列表、sudo、重新初始化等能力集中在交互菜单或 `bin/` 下的独立脚本中；当前入口脚本 **未** 将 `delete`、`list` 等映射为 `./user-mgmt.sh <command>` 形式（与仅含 `add` 的 CLI 一致即可）。
+
+---
+
+## 模块说明（`user-mgmt.sh`）
+
+入口 **`user-mgmt.sh`** 仅负责加载模块并分发子命令；逻辑位于：
+
+| 路径 | 职责 |
+|------|------|
+| `lib/config.sh` | 项目路径、`managed_users/`、`templates/`、proxy 段锚点、加载 `.env`、`HOST_NAME` |
+| `lib/paths.sh` | `um_project_root_from_bin_path`：`bin/` 下脚本解析仓库根 |
+| `lib/json_user_state.sh` | `_merge_json_sudo_from_system`：用 python3 将 JSON 与系统 sudo/docker 状态对齐 |
+| `lib/user_json_parse.sh` | `_load_user_data`：从单用户 JSON 解析字段到 shell 变量 |
+| `lib/ops/create_user.sh` | `um_create_managed_user`：非交互创建用户 |
+| `lib/ops/delete_user.sh` | `um_delete_managed_user`：非交互删除用户 |
+| `lib/interactive/cmd_add_user.sh` | `cmd_add`：交互创建用户 |
+| `lib/interactive/menu_user_lists.sh` | `_list_managed_users` / `_list_other_users` |
+| `lib/interactive/cmd_user_sync_and_sudo.sh` | `_sync_single_user`、`_enable_sudo`、`_disable_sudo`、`_track_user` |
+| `lib/interactive/menu_user_actions.sh` | 单用户菜单：查看、删除、登录、修改 |
+| `lib/interactive/menu_main.sh` | `interactive_menu`、`show_help` |
+
+每个文件 ≤300 行，便于阅读与 AI 索引；文件头注释说明依赖与副作用。
 
 ---
 
@@ -37,21 +59,21 @@
 
 ---
 
-## `manager_scripts/` 独立脚本
+## `bin/` 独立脚本
 
-目录内为可单独执行的脚本（需在仓库根目录关注路径，见 [CODE_REVIEW.md](./CODE_REVIEW.md) 中的路径说明）：
+从仓库根目录执行（脚本内通过 `lib/paths.sh` + `lib/config.sh` 解析项目根）：
 
 | 脚本 | 说明 |
 |------|------|
-| `add-user.sh` | 创建用户（与菜单逻辑类似） |
-| `delete-user.sh` | 删除用户 |
-| `modify-user.sh` | 修改私钥文件名等 JSON 字段 |
-| `list-user.sh` | 列出 `managed_users/*.json` |
-| `show-user.sh` | 查看用户详情与 SSH Config 片段 |
-| `enable-sudo.sh` | 写入 `/etc/sudoers.d/<用户>`（NOPASSWD；不加入 sudo 组） |
-| `disable-sudo.sh` | 删除 sudoers drop-in，并将用户从 sudo 组移除 |
-| `reinit-user.sh` | 覆盖 `~/scripts` 并刷新 `.bashrc` 中 proxy 段 |
-| `update-user-scripts.sh` | 仅同步 `~/scripts` |
+| `bin/create-managed-user.sh` | 创建用户（与菜单逻辑类似） |
+| `bin/delete-managed-user.sh` | 删除用户 |
+| `bin/modify-managed-user.sh` | 修改私钥文件名等 JSON 字段 |
+| `bin/list-managed-users.sh` | 列出 `managed_users/*.json` |
+| `bin/show-managed-user.sh` | 查看用户详情与 SSH Config 片段 |
+| `bin/enable-user-sudo.sh` | 写入 `/etc/sudoers.d/<用户>`（NOPASSWD；不加入 sudo 组） |
+| `bin/disable-user-sudo.sh` | 删除 sudoers drop-in，并将用户从 sudo 组移除 |
+| `bin/reinit-user-environment.sh` | 覆盖 `~/scripts` 并刷新 `.bashrc` 中 proxy 段 |
+| `bin/sync-user-scripts.sh` | 仅同步 `~/scripts` |
 
 ---
 
@@ -59,15 +81,26 @@
 
 ```
 user_management/
-├── user-mgmt.sh              # 统一入口（交互 + CLI add/help）
-├── manager_scripts/          # 独立功能脚本
-├── user_scripts/             # 复制到用户 ~/scripts 的模板
+├── user-mgmt.sh              # 统一入口（source lib/ 与 lib/interactive/）
+├── lib/
+│   ├── config.sh             # 路径、.env、proxy 锚点
+│   ├── paths.sh
+│   ├── json_user_state.sh
+│   ├── user_json_parse.sh
+│   ├── ops/                  # 无交互创建/删除
+│   └── interactive/          # 菜单与交互命令
+├── bin/                      # 可单独执行的维护脚本（见上表）
+├── templates/                # 复制到用户 ~/scripts 的模板
 │   ├── README.md
 │   ├── proxy.sh
 │   ├── setup-dev-env.sh
 │   └── unset_proxy.sh
 ├── managed_users/            # 每用户一个 JSON
 │   └── <username>.json
+├── tests/
+│   ├── run.sh
+│   └── integration/
+│       └── test_user_lifecycle.sh
 ├── .env                      # 可选：HOSTNAME 等（见下）
 └── README.md
 ```
@@ -117,9 +150,9 @@ user_management/
 
 ---
 
-## user_scripts 说明
+## templates 说明
 
-部署到用户 `~/scripts/` 的模板。**详细步骤与可选环境变量见 [`user_scripts/README.md`](user_scripts/README.md)**（与 `setup-dev-env.sh` 中 8 步安装一致）。
+部署到用户 `~/scripts/` 的模板。**详细步骤与可选环境变量见 [`templates/README.md`](templates/README.md)**（与 `setup-dev-env.sh` 中 8 步安装一致）。
 
 | 脚本 | 说明 |
 |------|------|
@@ -131,7 +164,7 @@ user_management/
 
 ## SSH Config 使用
 
-从「查看」或 `show-user.sh` 输出中复制片段到本机 `~/.ssh/config`，例如：
+从「查看」或 `bin/show-managed-user.sh` 输出中复制片段到本机 `~/.ssh/config`，例如：
 
 ```ssh-config
 Host testuser-hushine-4090
@@ -149,15 +182,25 @@ ssh testuser-hushine-4090
 
 ---
 
+## 集成测试
+
+创建与删除测试用户的全流程（**需 root 或免密 sudo**，会真实创建系统用户）：
+
+```bash
+./tests/run.sh
+```
+
+仅 CI 或无权限环境可跳过：
+
+```bash
+UM_SKIP_INTEGRATION=1 ./tests/run.sh
+```
+
+---
+
 ## 权限要求
 
 1. 执行创建/删除用户、改权限等操作的用户需要 **sudo**。
 2. 对 `managed_users/` 需要写权限（创建/更新/删除 JSON）。
-3. 对 `user_scripts/` 需要读权限（复制到用户 home）。
+3. 对 `templates/` 需要读权限（复制到用户 home）。
 4. 交互菜单中的 **Sync（同步）** 与 **纳入管理 (track)** 会调用 **python3** 合并/更新 JSON，请确保系统已安装 `python3`。
-
----
-
-## 相关文档
-
-- [CODE_REVIEW.md](./CODE_REVIEW.md)：代码审查摘要、已知问题与改进建议

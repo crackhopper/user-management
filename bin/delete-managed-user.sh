@@ -1,9 +1,14 @@
 #!/bin/bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-MANAGED_USERS_DIR="$PROJECT_ROOT/managed_users"
+_bin_here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/paths.sh
+source "$_bin_here/../lib/paths.sh"
+SCRIPT_DIR="$(um_project_root_from_bin_path "${BASH_SOURCE[0]}")"
+# shellcheck source=../lib/config.sh
+source "$SCRIPT_DIR/lib/config.sh"
+# shellcheck source=../lib/ops/delete_user.sh
+source "$SCRIPT_DIR/lib/ops/delete_user.sh"
 
 echo "=========================================="
 echo "         删除用户"
@@ -51,16 +56,15 @@ if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
 fi
 
 read -p "是否保留 home 目录 [$home_dir]？[y/N]: " keep_home
+keep_home_flag=false
 if [[ "$keep_home" =~ ^[Yy]$ ]]; then
-    sudo userdel "$username"
-    echo "已删除用户，home 目录已保留"
+    keep_home_flag=true
+    echo "将删除用户，home 目录已保留"
 else
-    sudo userdel -r "$username"
-    echo "已删除用户及 home 目录"
+    echo "将删除用户及 home 目录"
 fi
 
-sudo rm -f "/etc/sudoers.d/$username"
-rm -f "$json_file"
+um_delete_managed_user "$username" "$keep_home_flag" "$json_file"
 
 echo
 echo "用户 $username 已删除"

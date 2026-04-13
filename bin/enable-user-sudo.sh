@@ -1,9 +1,12 @@
 #!/bin/bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-MANAGED_USERS_DIR="$PROJECT_ROOT/managed_users"
+_bin_here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/paths.sh
+source "$_bin_here/../lib/paths.sh"
+SCRIPT_DIR="$(um_project_root_from_bin_path "${BASH_SOURCE[0]}")"
+# shellcheck source=../lib/config.sh
+source "$SCRIPT_DIR/lib/config.sh"
 
 echo "=========================================="
 echo "         启用 sudo 权限"
