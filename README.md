@@ -48,8 +48,8 @@
 | `modify-user.sh` | 修改私钥文件名等 JSON 字段 |
 | `list-user.sh` | 列出 `managed_users/*.json` |
 | `show-user.sh` | 查看用户详情与 SSH Config 片段 |
-| `enable-sudo.sh` | 写入 `/etc/sudoers.d/<用户>`（NOPASSWD） |
-| `disable-sudo.sh` | 删除对应 sudoers drop-in |
+| `enable-sudo.sh` | 写入 `/etc/sudoers.d/<用户>`（NOPASSWD；不加入 sudo 组） |
+| `disable-sudo.sh` | 删除 sudoers drop-in，并将用户从 sudo 组移除 |
 | `reinit-user.sh` | 覆盖 `~/scripts` 并刷新 `.bashrc` 中 proxy 段 |
 | `update-user-scripts.sh` | 仅同步 `~/scripts` |
 
@@ -92,7 +92,8 @@ user_management/
 {
   "username": "testuser",
   "home": "/home/testuser",
-  "sudo": true,
+  "sudo_group": false,
+  "sudo_sudoers": true,
   "docker": false,
   "login_ips": ["192.168.1.100:22"],
   "key_type": "id_ed25519",
@@ -106,20 +107,24 @@ user_management/
 
 | 字段 | 说明 |
 |------|------|
+| `sudo_group` | 用户是否在系统 **sudo 组**（`id -nG` 含 `sudo`） |
+| `sudo_sudoers` | 是否存在本工具管理的 **`/etc/sudoers.d/<用户名>`**（NOPASSWD 规则） |
 | `login_ips` | 字符串数组，元素形如 `IP:端口`，用于生成 SSH 提示 |
 | `managed` | 可选；为 `false` 时出现在「未管理用户」列表，纳入管理后改为 `true` |
 | `last_synced` | 可选；在菜单中执行「Sync」同步后可能写入 |
+
+**sudo 两种来源：** `sudo_group` 表示传统「加入 sudo 组」；`sudo_sudoers` 表示独立 drop-in 文件。本工具在**新建用户**与**启用 sudo** 时**只使用 sudoers 文件**（不自动加入 sudo 组）；**禁用 sudo** 会同时移除该文件并尝试将用户从 sudo 组移除。**Sync** 会从系统刷新两项记录。旧版仅含字段 `sudo` 的 JSON 会在同步或合并时迁移为上述两项（原 `sudo` 视为 `sudo_group`）。
 
 ---
 
 ## user_scripts 说明
 
-部署到用户 `~/scripts/` 的模板（根目录 `user_scripts/README.md` 有更细说明）：
+部署到用户 `~/scripts/` 的模板。**详细步骤与可选环境变量见 [`user_scripts/README.md`](user_scripts/README.md)**（与 `setup-dev-env.sh` 中 8 步安装一致）。
 
 | 脚本 | 说明 |
 |------|------|
 | `proxy.sh` | 设置 `http_proxy` / `https_proxy`（并可通过根 `user-mgmt.sh` 追加到 `.bashrc` 固定段） |
-| `setup-dev-env.sh` | 开发环境一键安装（nvm、Node、OpenCode、Cursor CLI、uv 等） |
+| `setup-dev-env.sh` | 开发环境一键安装（8 步：nvm、Node、OpenCode、Cursor CLI、pipx/uv、openspec、claude-code、everything-claude-code 等） |
 | `unset_proxy.sh` | 清除代理相关环境变量 |
 
 ---
@@ -149,6 +154,7 @@ ssh testuser-hushine-4090
 1. 执行创建/删除用户、改权限等操作的用户需要 **sudo**。
 2. 对 `managed_users/` 需要写权限（创建/更新/删除 JSON）。
 3. 对 `user_scripts/` 需要读权限（复制到用户 home）。
+4. 交互菜单中的 **Sync（同步）** 与 **纳入管理 (track)** 会调用 **python3** 合并/更新 JSON，请确保系统已安装 `python3`。
 
 ---
 

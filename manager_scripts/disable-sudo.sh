@@ -1,7 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
-MANAGED_USERS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/managed_users"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+MANAGED_USERS_DIR="$PROJECT_ROOT/managed_users"
 
 echo "=========================================="
 echo "         禁用 sudo 权限"
@@ -33,5 +35,6 @@ fi
 username="${users[$((choice-1))]}"
 
 sudo rm -f "/etc/sudoers.d/$username"
+sudo deluser "$username" sudo 2>/dev/null || true
 
-echo "已禁用用户 $username 的 sudo 权限"
+echo "已禁用用户 $username 的 sudo（已移除 sudoers 与 sudo 组）"

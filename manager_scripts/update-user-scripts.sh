@@ -1,8 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
-MANAGED_USERS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/managed_users"
-SCRIPTS_SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/user_scripts"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+MANAGED_USERS_DIR="$PROJECT_ROOT/managed_users"
+SCRIPTS_SRC="$PROJECT_ROOT/user_scripts"
 
 echo "=========================================="
 echo "         更新用户 scripts"

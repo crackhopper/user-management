@@ -1,7 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
-MANAGED_USERS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/managed_users"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+MANAGED_USERS_DIR="$PROJECT_ROOT/managed_users"
 
 echo "=========================================="
 echo "         删除用户"
@@ -40,6 +42,8 @@ echo "用户信息:"
 cat "$json_file"
 echo
 
+home_dir=$(grep '"home"' "$json_file" | sed 's/.*: *"\([^"]*\)".*/\1/')
+
 read -p "确认删除用户 $username ？[y/N]: " confirm
 if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
     echo "已取消"
@@ -51,7 +55,6 @@ if [[ "$keep_home" =~ ^[Yy]$ ]]; then
     sudo userdel "$username"
     echo "已删除用户，home 目录已保留"
 else
-    home_dir=$(grep '"home"' "$json_file" | sed 's/.*: *"\([^"]*\)".*/\1/')
     sudo userdel -r "$username"
     echo "已删除用户及 home 目录"
 fi

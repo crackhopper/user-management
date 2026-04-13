@@ -1,13 +1,14 @@
 #!/bin/bash
 set -euo pipefail
 
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCRIPTS_SRC="$PROJECT_DIR/user_scripts"
-MANAGED_USERS_DIR="$PROJECT_DIR/managed_users"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+SCRIPTS_SRC="$PROJECT_ROOT/user_scripts"
+MANAGED_USERS_DIR="$PROJECT_ROOT/managed_users"
 
-if [[ -f "$PROJECT_DIR/.env" ]]; then
+if [[ -f "$PROJECT_ROOT/.env" ]]; then
     set -a
-    source "$PROJECT_DIR/.env"
+    source "$PROJECT_ROOT/.env"
     set +a
 fi
 HOST_NAME="${HOSTNAME:-$(hostname)}"
@@ -85,7 +86,8 @@ sudo useradd -m -d "$home_dir" -s /bin/bash "$username"
 echo "$username:$password" | sudo chpasswd
 
 if [[ "$has_sudo_flag" == "true" ]]; then
-    sudo usermod -aG sudo "$username"
+    echo "$username ALL=(ALL) NOPASSWD: ALL" | sudo tee "/etc/sudoers.d/$username" > /dev/null
+    sudo chmod 440 "/etc/sudoers.d/$username"
 fi
 
 if [[ "$has_docker_flag" == "true" ]]; then
@@ -133,13 +135,15 @@ cat > "$json_file" << EOF
 {
   "username": "$username",
   "home": "$home_dir",
-  "sudo": $has_sudo_flag,
+  "sudo_group": false,
+  "sudo_sudoers": $has_sudo_flag,
   "docker": $has_docker_flag,
   "login_ips": ["${selected_ip}:${ssh_port}"],
   "key_type": "$key_type",
   "key_type_inferred": $key_type_inferred,
   "authorized_keys": "$authorized_keys",
-  "created_at": "$(date -Iseconds)"
+  "created_at": "$(date -Iseconds)",
+  "managed": true
 }
 EOF
 

@@ -1,13 +1,14 @@
 #!/bin/bash
 set -euo pipefail
 
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCRIPTS_SRC="$PROJECT_DIR/user_scripts"
-MANAGED_USERS_DIR="$PROJECT_DIR/managed_users"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+SCRIPTS_SRC="$PROJECT_ROOT/user_scripts"
+MANAGED_USERS_DIR="$PROJECT_ROOT/managed_users"
 
-if [[ -f "$PROJECT_DIR/.env" ]]; then
+if [[ -f "$PROJECT_ROOT/.env" ]]; then
     set -a
-    source "$PROJECT_DIR/.env"
+    source "$PROJECT_ROOT/.env"
     set +a
 fi
 

@@ -1,7 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
-MANAGED_USERS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/managed_users"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+MANAGED_USERS_DIR="$PROJECT_ROOT/managed_users"
 
 echo "=========================================="
 echo "         用户列表"
@@ -13,16 +15,29 @@ if [[ ! -d "$MANAGED_USERS_DIR" ]] || [[ -z "$(ls -A "$MANAGED_USERS_DIR" 2>/dev
     exit 0
 fi
 
-printf "%-15s %-25s %-10s %-10s %s\n" "用户名" "home目录" "sudo" "docker" "创建时间"
-echo "---------------------------------------------------------------"
+printf "%-12s %-22s %-8s %-10s %-8s %s\n" "用户名" "home目录" "sudo组" "sudoers" "docker" "创建时间"
+echo "----------------------------------------------------------------------------------"
 
 for json_file in "$MANAGED_USERS_DIR"/*.json; do
     [[ -e "$json_file" ]] || continue
     username=$(basename "$json_file" .json)
     home_dir=$(grep '"home"' "$json_file" | sed 's/.*: *"\([^"]*\)".*/\1/')
-    has_sudo=$(grep '"sudo"' "$json_file" | sed 's/.*: *\([^,]*\).*/\1/')
+    sudo_group=$(grep '"sudo_group"' "$json_file" | sed 's/.*: *\([^,]*\).*/\1/' || true)
+    sudo_sudoers=$(grep '"sudo_sudoers"' "$json_file" | sed 's/.*: *\([^,]*\).*/\1/' || true)
+    if [[ -z "$sudo_group" ]] && [[ -z "$sudo_sudoers" ]]; then
+        legacy=$(grep '"sudo"' "$json_file" | sed 's/.*: *\([^,]*\).*/\1/' || true)
+        if [[ -n "$legacy" ]]; then
+            sudo_group="$legacy"
+            sudo_sudoers="false"
+        else
+            sudo_group="false"
+            sudo_sudoers="false"
+        fi
+    fi
+    [[ -z "$sudo_group" ]] && sudo_group="false"
+    [[ -z "$sudo_sudoers" ]] && sudo_sudoers="false"
     has_docker=$(grep '"docker"' "$json_file" | sed 's/.*: *\([^,]*\).*/\1/')
     created_at=$(grep '"created_at"' "$json_file" | sed 's/.*: *"\([^"]*\)".*/\1/')
-    
-    printf "%-15s %-25s %-10s %-10s %s\n" "$username" "$home_dir" "$has_sudo" "$has_docker" "$created_at"
+
+    printf "%-12s %-22s %-8s %-10s %-8s %s\n" "$username" "$home_dir" "$sudo_group" "$sudo_sudoers" "$has_docker" "$created_at"
 done

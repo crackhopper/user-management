@@ -4,14 +4,35 @@
 
 ---
 
+## 落地修复记录（2026-04-13）
+
+以下问题已在仓库中**按审查结论修复**：
+
+| 原章节 | 处理 |
+|--------|------|
+| §1 | 全部 `manager_scripts/*.sh` 使用 `SCRIPT_DIR` + `PROJECT_ROOT`（父目录）定位 `managed_users/`、`user_scripts/`、`.env` |
+| §2 | `_user_delete` 末尾改为 `return 0` |
+| §3 | `_load_user_data` 解析 `login_ip`/`login_port`；`_user_view` 的 SSH 片段含 `HostName`/`Port`/`User`/`IdentityFile` |
+| §4 | `_sync_single_user` 使用 `python3` 读入 JSON、更新 `sudo`/`docker`/`last_synced`，保留其余字段 |
+| §5 | `delete-user.sh` 在提示前从 JSON 解析 `home_dir` |
+| §6 / §11 | `enable-sudo.sh`：`usermod -aG sudo` + sudoers 正文 `"$username ALL=..."`；`disable-sudo.sh`：`deluser` 出组 + 删文件；`user-mgmt.sh` 中 `_enable_sudo` 同步修正 sudoers 正文 |
+| §7 | `_track_user` 使用 `python3` 更新 `managed`/`sudo`/`docker` |
+| §9 | 新增 `.gitignore` 忽略 `.env` |
+| §10 / §12 | `user_scripts/README.md` 与 `setup-dev-env.sh` 对齐；根 `README.md` 补充 python3 依赖说明 |
+
+**未改代码（仍为建议）**：§8 全量将 `grep`/`sed` 换为 `jq`；§9 中密码明文、`NOPASSWD` 范围等运维策略。
+
+---
+
 ## 审查更新说明（第二轮 · 2026-04-13）
 
 本版在上一版文档基础上**重新通读**当前仓库，并对**相对上一版的变更**做了对照。结论如下。
 
 ### 仍存在的问题（代码未改或仍部分成立）
 
-- 第 1–9 节描述的问题**多数仍然存在**（`manager_scripts` 路径、`return "back"`、`login_ips` 与 Sync 丢字段、`delete-user.sh` 的 `$home_dir`、grep 解析 JSON、`_track_user` 的 `sed` 等）。
-- 根目录 `README.md` 已与 `user-mgmt.sh` 的 CLI 行为对齐（见原第 10 节），**该文档问题已缓解**。
+- ~~第 1–7、11 节所列多数实现问题~~ → 见上文 **落地修复记录**。
+- §8（JSON 解析脆弱性）仍建议后续引入 `jq` 或统一 Python 读写。
+- 根目录 `README.md` 已与 `user-mgmt.sh` 的 CLI 行为对齐（见原第 10 节）。
 
 ### 新增发现（本次审查）
 
@@ -193,11 +214,12 @@ echo "$username ALL=(ALL) NOPASSWD: ALL" | sudo tee "/etc/sudoers.d/$username" >
 
 ## 小结（优先级）
 
-| 优先级 | 项 |
-|--------|-----|
-| **最高** | 第 11 节：sudoers 正文使用 `$username`，勿写死字面量 `username` |
-| 高 | 第 1 节：`manager_scripts` 的 `PROJECT_ROOT`；第 2 节：`return "back"`；第 3–4 节：`login_ips` 与 Sync 合并 JSON |
-| 中 | 第 5 节：`delete-user.sh` 提示变量；第 6 节：sudo 脚本与组一致；第 7 节：`_track_user` |
-| 低 | 第 8 节：引入 `jq`；第 9 节：运维与安全；第 12 节：文档与 `setup-dev-env.sh` 同步 |
+| 优先级 | 项 | 状态 |
+|--------|-----|------|
+| ~~最高~~ | ~~§11 sudoers `$username`~~ | 已修复 |
+| ~~高~~ | ~~§1 PROJECT_ROOT；§2 `return`；§3–4 login_ips / Sync~~ | 已修复 |
+| ~~中~~ | ~~§5 delete-user；§6 sudo 脚本；§7 track~~ | 已修复 |
+| 低 | §8：引入 `jq` 或统一 JSON 工具链 | 待迭代 |
+| 文档/运维 | §9 敏感信息与 sudo 策略；密钥不入库 | 持续注意 |
 
-如需，可在后续补丁中按上表逐项落地修改。
+如需，可在后续补丁中继续处理 §8 等剩余项。

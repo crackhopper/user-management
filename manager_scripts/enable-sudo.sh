@@ -1,7 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
-MANAGED_USERS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/managed_users"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+MANAGED_USERS_DIR="$PROJECT_ROOT/managed_users"
 
 echo "=========================================="
 echo "         启用 sudo 权限"
@@ -32,7 +34,7 @@ fi
 
 username="${users[$((choice-1))]}"
 
-echo "username ALL=(ALL) NOPASSWD: ALL" | sudo tee "/etc/sudoers.d/$username" > /dev/null
+echo "$username ALL=(ALL) NOPASSWD: ALL" | sudo tee "/etc/sudoers.d/$username" > /dev/null
 sudo chmod 440 "/etc/sudoers.d/$username"
 
-echo "已启用用户 $username 的 sudo 权限（NOPASSWD）"
+echo "已启用用户 $username 的 sudo（NOPASSWD：/etc/sudoers.d/$username；未加入 sudo 组）"

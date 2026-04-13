@@ -15,17 +15,79 @@ HOST_NAME="${HOSTNAME:-$(hostname)}"
 ESCAPE_KEY=$'\e'
 BACK_ESCAPE=$'^[['
 
+# mode: sync（写 last_synced）| refresh（仅按系统刷新 sudo 相关字段）| track（managed=true + 刷新）
+_merge_json_sudo_from_system() {
+    local json_file="$1"
+    local username="$2"
+    local mode="${3:-refresh}"
+
+    if ! command -v python3 &>/dev/null; then
+        echo "错误: 需要 python3 以更新 JSON。"
+        return 1
+    fi
+    python3 -c "
+import json
+import os
+import subprocess
+import sys
+from datetime import datetime
+
+path = sys.argv[1]
+username = sys.argv[2]
+mode = sys.argv[3]
+
+with open(path) as f:
+    d = json.load(f)
+
+if 'sudo' in d and 'sudo_group' not in d:
+    v = d['sudo']
+    if isinstance(v, bool):
+        d['sudo_group'] = v
+    else:
+        d['sudo_group'] = str(v).strip() == 'true'
+    d['sudo_sudoers'] = False
+    del d['sudo']
+
+r = subprocess.run(['id', '-nG', username], capture_output=True, text=True)
+gs = (r.stdout or '').split()
+d['sudo_group'] = 'sudo' in gs
+d['sudo_sudoers'] = os.path.isfile(f'/etc/sudoers.d/{username}')
+d['docker'] = 'docker' in gs
+
+if mode == 'sync':
+    d['last_synced'] = datetime.now().astimezone().isoformat(timespec='seconds')
+elif mode == 'track':
+    d['managed'] = True
+
+with open(path, 'w') as f:
+    json.dump(d, f, indent=2, ensure_ascii=False)
+    f.write('\n')
+" "$json_file" "$username" "$mode"
+}
+
 _load_user_data() {
     local json_file="$1"
     username=$(basename "$json_file" .json)
     home_dir=$(grep '"home"' "$json_file" | sed 's/.*: *"\([^"]*\)".*/\1/')
-    has_sudo=$(grep '"sudo"' "$json_file" | sed 's/.*: *\([^,]*\).*/\1/')
+    sudo_group=$(grep '"sudo_group"' "$json_file" | sed 's/.*: *\([^,]*\).*/\1/' || true)
+    sudo_sudoers=$(grep '"sudo_sudoers"' "$json_file" | sed 's/.*: *\([^,]*\).*/\1/' || true)
+    has_sudo_legacy=$(grep '"sudo"' "$json_file" | sed 's/.*: *\([^,]*\).*/\1/' || true)
+    if [[ -z "$sudo_group" ]] && [[ -z "$sudo_sudoers" ]] && [[ -n "$has_sudo_legacy" ]]; then
+        sudo_group="$has_sudo_legacy"
+        sudo_sudoers="false"
+    fi
+    [[ -z "$sudo_group" ]] && sudo_group="false"
+    [[ -z "$sudo_sudoers" ]] && sudo_sudoers="false"
     has_docker=$(grep '"docker"' "$json_file" | sed 's/.*: *\([^,]*\).*/\1/')
     authorized_keys=$(grep '"authorized_keys"' "$json_file" | sed 's/.*: *\"\([^\"]*\)\".*/\1/')
     key_type=$(grep '"key_type"' "$json_file" | sed 's/.*: *"\([^"]*\)".*/\1/')
     key_type_inferred=$(grep '"key_type_inferred"' "$json_file" | sed 's/.*: *\([^,]*\).*/\1/' || true)
     managed=$(grep '"managed"' "$json_file" | sed 's/.*: *\([^,]*\).*/\1/' || true)
     created_at=$(grep '"created_at"' "$json_file" | sed 's/.*: *"\([^"]*\)".*/\1/')
+    login_ip=$(grep '"login_ips"' "$json_file" | sed 's/.*: *\[\"\([^:]*\):[^"]*\"\].*/\1/')
+    login_port=$(grep '"login_ips"' "$json_file" | sed 's/.*: *\[\"[^:]*:\([^"]*\)\"\].*/\1/')
+    [[ -z "$login_ip" ]] && login_ip="127.0.0.1"
+    [[ -z "$login_port" ]] && login_port="22"
 
     if [[ -z "$key_type" ]]; then
         if [[ "$authorized_keys" == ssh-rsa* ]]; then
@@ -67,7 +129,7 @@ cmd_add() {
     [[ "$home_dir" == $'\e' ]] && return
     home_dir="${home_dir:-$default_home}"
 
-    read -p "是否有sudo权限 [y/N]: " has_sudo
+    read -p "是否启用 sudo（NOPASSWD，/etc/sudoers.d，非 sudo 组） [y/N]: " has_sudo
     [[ "$has_sudo" == $'\e' ]] && return
     has_sudo_flag=false
     if [[ "$has_sudo" =~ ^[Yy]$ ]]; then
@@ -123,7 +185,8 @@ cmd_add() {
     echo "$username:$password" | sudo chpasswd
 
     if [[ "$has_sudo_flag" == "true" ]]; then
-        sudo usermod -aG sudo "$username"
+        echo "$username ALL=(ALL) NOPASSWD: ALL" | sudo tee "/etc/sudoers.d/$username" > /dev/null
+        sudo chmod 440 "/etc/sudoers.d/$username"
     fi
 
     if [[ "$has_docker_flag" == "true" ]]; then
@@ -169,13 +232,15 @@ cmd_add() {
 {
   "username": "$username",
   "home": "$home_dir",
-  "sudo": $has_sudo_flag,
+  "sudo_group": false,
+  "sudo_sudoers": $has_sudo_flag,
   "docker": $has_docker_flag,
   "login_ips": ["${selected_ip}:${ssh_port}"],
   "key_type": "$key_type",
   "key_type_inferred": $key_type_inferred,
   "authorized_keys": "$authorized_keys",
-  "created_at": "$(date -Iseconds)"
+  "created_at": "$(date -Iseconds)",
+  "managed": true
 }
 EOF
 
@@ -370,7 +435,8 @@ _user_view() {
     echo "--- 基本信息 ---"
     echo "用户名:       $username"
     echo "Home目录:    $home_dir"
-    echo "Sudo:        $has_sudo"
+    echo "Sudo组:      $sudo_group"
+    echo "sudoers文件: $sudo_sudoers  (/etc/sudoers.d/$username)"
     echo "Docker:      $has_docker"
     echo "管理状态:    $managed"
     echo "创建时间:    $created_at"
@@ -387,7 +453,8 @@ _user_view() {
     echo "--- SSH Config ---"
     cat << EOF
 Host $ssh_host_name
-    HostName ${login_ips:-127.0.0.1}
+    HostName $login_ip
+    Port $login_port
     User $username
     IdentityFile ~/.ssh/$key_type
 EOF
@@ -424,7 +491,7 @@ _user_delete() {
     echo
     read -p "按回车继续..." _
 
-    return "back"
+    return 0
 }
 
 _user_login() {
@@ -444,8 +511,8 @@ _user_modify_menu() {
         echo "=========================================="
         echo
         echo "  1) Sync (同步状态和 scripts)"
-        echo "  2) 启用 sudo"
-        echo "  3) 禁用 sudo"
+        echo "  2) 启用 sudo（sudoers.d / NOPASSWD）"
+        echo "  3) 禁用 sudo（移除 sudoers 与 sudo 组）"
         echo
         echo "  0) 返回"
         echo
@@ -495,29 +562,7 @@ _sync_single_user() {
         sudo chown "$username:$username" "$bashrc"
     fi
 
-    current_groups=$(id -nG "$username" 2>/dev/null | tr ' ' '\n' | grep -E '^(sudo|docker)$' || true)
-    has_sudo="false"
-    has_docker="false"
-    if echo "$current_groups" | grep -q '^sudo$'; then
-        has_sudo="true"
-    fi
-    if echo "$current_groups" | grep -q '^docker$'; then
-        has_docker="true"
-    fi
-
-    cat > "$json_file" << EOF
-{
-  "username": "$username",
-  "home": "$home_dir",
-  "sudo": $has_sudo,
-  "docker": $has_docker,
-  "key_type": "$key_type",
-  "key_type_inferred": $key_type_inferred,
-  "authorized_keys": "$authorized_keys",
-  "created_at": "$created_at",
-  "last_synced": "$(date -Iseconds)"
-}
-EOF
+    _merge_json_sudo_from_system "$json_file" "$username" sync
 
     echo "✅ $username 已同步"
     read -p "按回车继续..." _
@@ -525,18 +570,25 @@ EOF
 
 _enable_sudo() {
     local username="$1"
-    sudo usermod -aG sudo "$username"
-    echo "username ALL=(ALL) NOPASSWD: ALL" | sudo tee "/etc/sudoers.d/$username" > /dev/null
+    local json_file="$MANAGED_USERS_DIR/${username}.json"
+    echo "$username ALL=(ALL) NOPASSWD: ALL" | sudo tee "/etc/sudoers.d/$username" > /dev/null
     sudo chmod 440 "/etc/sudoers.d/$username"
-    echo "已启用 $username 的 sudo 权限"
+    if [[ -f "$json_file" ]]; then
+        _merge_json_sudo_from_system "$json_file" "$username" refresh
+    fi
+    echo "已启用 $username 的 sudo（NOPASSWD：/etc/sudoers.d/$username；未使用 sudo 组）"
     read -p "按回车继续..." _
 }
 
 _disable_sudo() {
     local username="$1"
-    sudo deluser "$username" sudo 2>/dev/null || true
+    local json_file="$MANAGED_USERS_DIR/${username}.json"
     sudo rm -f "/etc/sudoers.d/$username"
-    echo "已禁用 $username 的 sudo 权限"
+    sudo deluser "$username" sudo 2>/dev/null || true
+    if [[ -f "$json_file" ]]; then
+        _merge_json_sudo_from_system "$json_file" "$username" refresh
+    fi
+    echo "已禁用 $username 的 sudo（已移除 sudoers 与 sudo 组）"
     read -p "按回车继续..." _
 }
 
@@ -548,7 +600,7 @@ _track_user() {
     echo "纳入管理: $username"
     echo
 
-    read -p "设置 sudo 权限 [y/N]: " has_sudo
+    read -p "设置 sudo（/etc/sudoers.d，NOPASSWD） [y/N]: " has_sudo
     sudo_flag=false
     if [[ "$has_sudo" =~ ^[Yy]$ ]]; then
         sudo_flag=true
@@ -560,9 +612,21 @@ _track_user() {
         docker_flag=true
     fi
 
-    sed -i 's/"managed": false/"managed": true/' "$json_file"
-    sed -i "s/\"sudo\": false/\"sudo\": $sudo_flag/" "$json_file"
-    sed -i "s/\"docker\": false/\"docker\": $docker_flag/" "$json_file"
+    if [[ "$sudo_flag" == "true" ]]; then
+        echo "$username ALL=(ALL) NOPASSWD: ALL" | sudo tee "/etc/sudoers.d/$username" > /dev/null
+        sudo chmod 440 "/etc/sudoers.d/$username"
+    else
+        sudo rm -f "/etc/sudoers.d/$username"
+        sudo deluser "$username" sudo 2>/dev/null || true
+    fi
+
+    if [[ "$docker_flag" == "true" ]]; then
+        sudo usermod -aG docker "$username"
+    else
+        sudo deluser "$username" docker 2>/dev/null || true
+    fi
+
+    _merge_json_sudo_from_system "$json_file" "$username" track
 
     echo "✅ $username 已纳入管理"
     read -p "按回车继续..." _

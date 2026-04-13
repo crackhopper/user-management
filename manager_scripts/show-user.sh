@@ -1,11 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 
-MANAGED_USERS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/managed_users"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+MANAGED_USERS_DIR="$PROJECT_ROOT/managed_users"
 
-if [[ -f "$(dirname "${BASH_SOURCE[0]}")/.env" ]]; then
+if [[ -f "$PROJECT_ROOT/.env" ]]; then
     set -a
-    source "$(dirname "${BASH_SOURCE[0]}")/.env"
+    source "$PROJECT_ROOT/.env"
     set +a
 fi
 HOST_NAME="${HOSTNAME:-$(hostname)}"

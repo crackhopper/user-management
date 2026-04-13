@@ -1,0 +1,11 @@
+{
+  "username": "zhzh",
+  "home": "/home/zhzh",
+  "sudo": true,
+  "docker": true,
+  "login_ips": ["192.168.110.11:22"],
+  "key_type": "id_ed25519",
+  "key_type_inferred": true,
+  "authorized_keys": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIASkKcyrLjkC59kK8ggMGynPytLQEtYkzRRigq/F52Go 2855872206@qq.com",
+  "created_at": "2026-04-11T11:11:09+08:00"
+}
