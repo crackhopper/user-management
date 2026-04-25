@@ -1,24 +1,19 @@
 #!/bin/bash
+# bin/reinit-user-environment.sh — 重新部署用户 ~/scripts 并刷新 .bashrc proxy 段
 set -euo pipefail
 
-_bin_here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=../lib/paths.sh
-source "$_bin_here/../lib/paths.sh"
-SCRIPT_DIR="$(um_project_root_from_bin_path "${BASH_SOURCE[0]}")"
-# shellcheck source=../lib/config.sh
-source "$SCRIPT_DIR/lib/config.sh"
-# shellcheck source=../lib/json_user_state.sh
-source "$SCRIPT_DIR/lib/json_user_state.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")"/.. && pwd)/lib/bootstrap.sh"
+um_bootstrap "${BASH_SOURCE[0]}" json_user_state proxy_block
 
 usage() {
     echo "用法: $0 [选项]"
-    echo "  无参数：交互式从 managed_users 列出用户，选择编号后重新初始化："
+    echo "  无参数：交互式从 managed_users 列出用户，选择编号后："
     echo "  - 将 templates 同步到 ~/scripts（覆盖旧内容）"
-    echo "  - 更新 ~/.bashrc 中 user_management proxy 段（与当前 proxy.sh 一致）"
+    echo "  - 刷新 ~/.bashrc 中 user_management proxy 段（与当前 proxy.sh 一致）"
     echo "  - 按系统状态刷新 JSON（sudo_group / sudo_sudoers / docker、last_synced 等）"
     echo
     echo "选项:"
-    echo "  --all --yes    对全部已管理用户执行上述步骤（非交互，需同时指定 --yes）"
+    echo "  --all --yes    对全部已管理用户执行（非交互，需同时指定 --yes）"
     echo "  -h, --help     显示本说明"
 }
 
@@ -31,25 +26,8 @@ reinit_one() {
     sudo cp -r "$SCRIPTS_SRC" "$home_dir/scripts"
     sudo chown -R "$username:$username" "$home_dir/scripts"
 
-    local bashrc="$home_dir/.bashrc"
-    if [[ -f "$SCRIPTS_SRC/proxy.sh" ]]; then
-        echo "更新 $bashrc 中的 proxy 段 ..."
-        if [[ -f "$bashrc" ]]; then
-            sudo sed -i '\|# BEGIN user_management proxy (templates/proxy.sh)|,|# END user_management proxy|d' "$bashrc"
-        else
-            sudo touch "$bashrc"
-            sudo chown "$username:$username" "$bashrc"
-        fi
-        {
-            echo ""
-            echo "# BEGIN user_management proxy (templates/proxy.sh)"
-            cat "$SCRIPTS_SRC/proxy.sh"
-            echo "# END user_management proxy"
-        } | sudo tee -a "$bashrc" > /dev/null
-        sudo chown "$username:$username" "$bashrc"
-    else
-        echo "跳过 proxy（未找到 $SCRIPTS_SRC/proxy.sh）"
-    fi
+    echo "刷新 $home_dir/.bashrc 中的 proxy 段 ..."
+    _um_proxy_block_write "$home_dir/.bashrc" "$username"
 }
 
 DO_ALL=false

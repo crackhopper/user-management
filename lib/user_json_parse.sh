@@ -42,4 +42,34 @@ _load_user_data() {
         fi
         key_type_inferred="true"
     fi
+
+    # python3 兜底：login_ips、authorized_keys 在 JSON 多行 list 格式下 grep+sed 拿不到正确值
+    if command -v python3 &>/dev/null; then
+        local _vals _ip _port _rest _ak
+        _vals="$(UM_JSON="$json_file" python3 - <<'PY'
+import json, os, sys
+with open(os.environ["UM_JSON"]) as f:
+    d = json.load(f)
+li = d.get("login_ips", [])
+ip = ""; port = ""
+if isinstance(li, list) and li:
+    s = li[0]
+    if isinstance(s, str) and ":" in s:
+        ip, _, port = s.rpartition(":")
+ak = d.get("authorized_keys", "")
+if isinstance(ak, list):
+    ak = "\n".join(k for k in ak if isinstance(k, str) and k.strip())
+elif not isinstance(ak, str):
+    ak = ""
+sys.stdout.write(ip + "\x1f" + port + "\x1f" + ak)
+PY
+)"
+        _ip="${_vals%%$'\x1f'*}"
+        _rest="${_vals#*$'\x1f'}"
+        _port="${_rest%%$'\x1f'*}"
+        _ak="${_rest#*$'\x1f'}"
+        [[ -n "$_ip" ]] && login_ip="$_ip"
+        [[ -n "$_port" ]] && login_port="$_port"
+        [[ -n "$_ak" ]] && authorized_keys="$_ak"
+    fi
 }

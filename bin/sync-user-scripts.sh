@@ -1,14 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-_bin_here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=../lib/paths.sh
-source "$_bin_here/../lib/paths.sh"
-SCRIPT_DIR="$(um_project_root_from_bin_path "${BASH_SOURCE[0]}")"
-# shellcheck source=../lib/config.sh
-source "$SCRIPT_DIR/lib/config.sh"
-# shellcheck source=../lib/json_user_state.sh
-source "$SCRIPT_DIR/lib/json_user_state.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")"/.. && pwd)/lib/bootstrap.sh"
+um_bootstrap "${BASH_SOURCE[0]}" json_user_state
 
 usage() {
     echo "用法: $0 [选项]"

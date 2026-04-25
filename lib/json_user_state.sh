@@ -46,8 +46,19 @@ if 'sudo' in d and 'sudo_group' not in d:
 r = subprocess.run(['id', '-nG', username], capture_output=True, text=True)
 gs = (r.stdout or '').split()
 d['sudo_group'] = 'sudo' in gs
-d['sudo_sudoers'] = os.path.isfile(f'/etc/sudoers.d/{username}')
+sudoers_path = f'/etc/sudoers.d/{username}'
+d['sudo_sudoers'] = os.path.isfile(sudoers_path)
 d['docker'] = 'docker' in gs
+
+if d['sudo_sudoers']:
+    try:
+        with open(sudoers_path) as sf:
+            content = sf.read()
+        d['sudo_mode'] = 'nopasswd' if 'NOPASSWD' in content else 'password'
+    except OSError:
+        d['sudo_mode'] = 'unknown'
+else:
+    d['sudo_mode'] = 'none'
 
 if mode == 'sync':
     d['last_synced'] = datetime.now().astimezone().isoformat(timespec='seconds')

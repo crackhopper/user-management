@@ -161,8 +161,10 @@ _user_modify_menu() {
         echo "=========================================="
         echo
         echo "  1) Sync (同步状态和 scripts)"
-        echo "  2) 启用 sudo（sudoers.d / NOPASSWD）"
+        echo "  2) 启用/切换 sudo 模式（NOPASSWD ↔ 需密码）"
         echo "  3) 禁用 sudo（移除 sudoers 与 sudo 组）"
+        echo "  4) 重新配置预装项（逐项 apply/remove）"
+        echo "  5) 公钥管理（list / add / delete）"
         echo
         echo "  0) 返回"
         echo
@@ -173,6 +175,8 @@ _user_modify_menu() {
             1) _sync_single_user "$username" "$json_file" ;;
             2) _enable_sudo "$username" ;;
             3) _disable_sudo "$username" ;;
+            4) _reconfigure_user "$username" "$json_file" ;;
+            5) _user_keys_menu "$username" "$json_file" ;;
             0) return ;;
             *) echo "无效选择" ;;
         esac

@@ -25,8 +25,11 @@ HOST_IP="${HOST_IP:-}"
 UM_HOME_PARENT="${UM_HOME_PARENT:-/home}"
 UM_HOME_PARENT="${UM_HOME_PARENT%/}"
 
-# 新建用户默认是否部署 ~/scripts（复制 templates/ 并写入 proxy 段）
-UM_DEPLOY_SCRIPTS_DEFAULT="${UM_DEPLOY_SCRIPTS_DEFAULT:-true}"
+# 新建用户默认是否部署 ~/scripts（仅复制 templates/，不再隐含写入 proxy 段）
+UM_DEPLOY_SCRIPTS_DEFAULT="${UM_DEPLOY_SCRIPTS_DEFAULT:-false}"
+
+# 新建用户默认是否在 ~/.bashrc 写入 proxy 段（独立于 scripts 部署）
+UM_CONFIGURE_PROXY_DEFAULT="${UM_CONFIGURE_PROXY_DEFAULT:-false}"
 
 ESCAPE_KEY=$'\e'
 BACK_ESCAPE=$'^[['

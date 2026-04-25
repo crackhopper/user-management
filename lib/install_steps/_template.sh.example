@@ -1,0 +1,66 @@
+# lib/install_steps/_template.sh.example — 新增预装模块的模板（不会被加载）
+# -----------------------------------------------------------------------------
+# 复制此文件到 lib/install_steps/<your_step_name>.sh 后修改。
+# 文件名（去 .sh 后）即 step key；下方 5 个函数都用此 key 作为前缀。
+#
+# 必须实现的 5 个函数：
+#   um_step_<key>_label   — 中文描述（菜单显示用）
+#   um_step_<key>_default — 默认是否启用（"true"|"false"，可读 .env 变量）
+#   um_step_<key>_status  user home -> 输出 "true"|"false"，探测是否已部署
+#   um_step_<key>_apply   user home json_file —— 安装/部署
+#   um_step_<key>_remove  user home json_file —— 卸载/移除
+#
+# 文件以 user_management 锚点段写入用户文件时，使用 _um_anchor_write/strip 保证
+# 可被「移除」干净地清理。
+# -----------------------------------------------------------------------------
+
+UM_STEPS+=(your_step_name)
+
+um_step_your_step_name_label()   { echo "示例：你的预装模块"; }
+um_step_your_step_name_default() { echo "false"; }
+
+um_step_your_step_name_status() {
+    local user="$1" home="$2"
+    sudo -u "$user" -- bash -lc 'command -v your-bin' &>/dev/null && echo true || echo false
+}
+
+um_step_your_step_name_apply() {
+    local user="$1" home="$2"
+    # 注意：用 -H 不用 -i。sudo -i 会把后续 args join 成单行，破坏多行命令语法。
+    sudo -u "$user" -H bash -lc 'echo "在这里执行 apt/npm/pipx/curl 等命令"'
+}
+
+um_step_your_step_name_remove() {
+    local user="$1" home="$2"
+    sudo -u "$user" -H bash -lc 'echo "在这里执行 uninstall"'
+}
+
+# -----------------------------------------------------------------------------
+# 范式参考（仅注释）：
+# -----------------------------------------------------------------------------
+# 1) 用户级 npm 全局包
+#    apply:  sudo -u "$user" -i bash -lc 'npm install -g @some/pkg'
+#    status: sudo -u "$user" -i bash -lc 'npm list -g --depth=0 | grep -q @some/pkg' && echo true || echo false
+#    remove: sudo -u "$user" -i bash -lc 'npm uninstall -g @some/pkg'
+#
+# 2) 用户级 pipx
+#    apply:  sudo -u "$user" -i bash -lc 'pipx install some-tool'
+#    status: sudo -u "$user" -i bash -lc 'pipx list --short | grep -q some-tool' && echo true || echo false
+#    remove: sudo -u "$user" -i bash -lc 'pipx uninstall some-tool'
+#
+# 3) 系统级 apt 包（影响所有用户；status 为系统级）
+#    apply:  sudo apt-get install -y the-pkg
+#    status: dpkg -s the-pkg &>/dev/null && echo true || echo false
+#    remove: sudo apt-get remove -y the-pkg
+#
+# 4) 写入用户 .bashrc 的额外片段（用 anchor）
+#    name="my_block"
+#    apply:  printf '%s\n' "alias x='echo hello'" | _um_anchor_write "$home/.bashrc" "$name" "$user"
+#    status: _um_anchor_present "$home/.bashrc" "$name"
+#    remove: _um_anchor_strip "$home/.bashrc" "$name" "#" "$user"
+#
+# 5) 用户主目录文件
+#    apply:  sudo -u "$user" -- cp /path/to/source "$home/.config/some-config"
+#    status: sudo test -e "$home/.config/some-config" && echo true || echo false
+#    remove: sudo rm -f "$home/.config/some-config"
+# -----------------------------------------------------------------------------

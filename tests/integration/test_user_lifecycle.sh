@@ -16,6 +16,17 @@ fi
 
 # shellcheck source=../../lib/config.sh
 source "$SCRIPT_DIR/lib/config.sh"
+# shellcheck source=../../lib/json_io.sh
+source "$SCRIPT_DIR/lib/json_io.sh"
+# shellcheck source=../../lib/anchors.sh
+source "$SCRIPT_DIR/lib/anchors.sh"
+# shellcheck source=../../lib/proxy_block.sh
+source "$SCRIPT_DIR/lib/proxy_block.sh"
+# shellcheck source=../../lib/group_ops.sh
+source "$SCRIPT_DIR/lib/group_ops.sh"
+# shellcheck source=../../lib/install_steps.sh
+source "$SCRIPT_DIR/lib/install_steps.sh"
+_um_steps_load
 # shellcheck source=../../lib/ops/create_user.sh
 source "$SCRIPT_DIR/lib/ops/create_user.sh"
 # shellcheck source=../../lib/ops/delete_user.sh
@@ -46,6 +57,9 @@ HOME_DIR="${UM_HOME_PARENT:-/home}/$TEST_USER"
 HAS_SUDO="false"
 HAS_DOCKER="false"
 DEPLOY_SCRIPTS="true"
+CONFIGURE_PROXY="false"
+USER_COMMENT="integration-test"
+LOGIN_SHELL="/bin/bash"
 
 cleanup() {
     if id "$TEST_USER" &>/dev/null; then
@@ -57,7 +71,8 @@ trap cleanup EXIT
 
 echo ">>> create $TEST_USER ..."
 um_create_managed_user "$TEST_USER" "$TEST_PASS" "$HOME_DIR" "$HAS_SUDO" "$HAS_DOCKER" \
-    "$FAKE_PUB" "$KEY_TYPE" "$KEY_INF" "$SELECTED_IP" "$SSH_PORT" "$DEPLOY_SCRIPTS"
+    "$FAKE_PUB" "$KEY_TYPE" "$KEY_INF" "$SELECTED_IP" "$SSH_PORT" "$DEPLOY_SCRIPTS" "$CONFIGURE_PROXY" \
+    "$USER_COMMENT" "$LOGIN_SHELL"
 
 [[ -n "$UM_CREATED_JSON_FILE" ]] || _fail "UM_CREATED_JSON_FILE empty"
 [[ -f "$UM_CREATED_JSON_FILE" ]] || _fail "json not created: $UM_CREATED_JSON_FILE"

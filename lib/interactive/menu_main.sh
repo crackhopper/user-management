@@ -15,6 +15,7 @@ interactive_menu() {
         echo "  1) 新建用户"
         echo "  2) 已管理用户"
         echo "  3) 未管理用户"
+        echo "  4) 预装模块管理"
         echo
         echo "  0) 退出"
         echo
@@ -25,6 +26,7 @@ interactive_menu() {
             1) cmd_add ;;
             2) _list_managed_users ;;
             3) _list_other_users ;;
+            4) _modules_menu ;;
             0) exit 0 ;;
             *) echo "无效选择" ;;
         esac

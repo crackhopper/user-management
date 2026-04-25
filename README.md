@@ -2,6 +2,8 @@
 
 统一管理 Linux 用户的一站式工具集：创建账号、SSH 公钥、`~/scripts` 模板、代理段写入 `.bashrc`，并在 `managed_users/` 中保存元数据。
 
+> **新手起步**：见 [`tutorial/`](tutorial/README.md) 教程，11 篇分主题。
+
 ## 快速开始
 
 ```bash
@@ -33,17 +35,27 @@
 
 | 路径 | 职责 |
 |------|------|
+| `lib/bootstrap.sh` | `um_bootstrap`：bin/ 入口脚本统一加载 paths+config+模块 |
 | `lib/config.sh` | 项目路径、`managed_users/`、`templates/`、proxy 段锚点、加载 `.env`、`HOST_NAME` |
 | `lib/paths.sh` | `um_project_root_from_bin_path`：`bin/` 下脚本解析仓库根 |
-| `lib/json_user_state.sh` | `_merge_json_sudo_from_system`：用 python3 将 JSON 与系统 sudo/docker 状态对齐 |
+| `lib/json_io.sh` | `_um_json_write_user`：python3 安全写 managed_users JSON |
+| `lib/json_user_state.sh` | `_merge_json_sudo_from_system`：将 JSON 与系统 sudo/docker 状态对齐 |
 | `lib/user_json_parse.sh` | `_load_user_data`：从单用户 JSON 解析字段到 shell 变量 |
 | `lib/stub_unmanaged_user.sh` | 列出本地 passwd 用户、为无 JSON 者生成 `managed: false` 占位文件 |
-| `lib/ops/create_user.sh` | `um_create_managed_user`：非交互创建用户 |
+| `lib/anchors.sh` | `_um_anchor_write/strip/present`：通用 BEGIN/END 注释锚点块读写 |
+| `lib/proxy_block.sh` | proxy 段读写薄壳（实际实现在 `install_steps/proxy_bashrc.sh`） |
+| `lib/group_ops.sh` | `_um_group_remove_user`：跨发行版从组中移除用户（gpasswd/deluser） |
+| `lib/install_steps.sh` | `_um_steps_load`、`_um_step_call`：预装步骤注册表 |
+| `lib/install_steps/<key>.sh` | 一个预装项一个文件，实现 label/default/status/apply/remove |
+| `lib/install_steps/_template.sh.example` | 新增预装模块的模板（含 npm/pipx/apt/bashrc 范式） |
+| `lib/ops/create_user.sh` | `um_create_managed_user`：非交互创建用户（走 step 注册表） |
 | `lib/ops/delete_user.sh` | `um_delete_managed_user`：非交互删除用户 |
-| `lib/interactive/cmd_add_user.sh` | `cmd_add`：交互创建用户 |
+| `lib/interactive/prompts.sh` | `_ask_required/_ask_required_secret/_ask_default/_ask_yn`：交互输入 helper（ESC 取消） |
+| `lib/interactive/cmd_add_user.sh` | `cmd_add`：交互创建用户（每项独立询问） |
 | `lib/interactive/menu_user_lists.sh` | `_list_managed_users` / `_list_other_users` |
-| `lib/interactive/cmd_user_sync_and_sudo.sh` | `_sync_single_user`、`_enable_sudo`、`_disable_sudo`、`_track_user` |
-| `lib/interactive/menu_user_actions.sh` | 单用户菜单：查看、删除、登录、修改 |
+| `lib/interactive/cmd_user_sync_and_sudo.sh` | `_sync_single_user`/`_enable_sudo`/`_disable_sudo`/`_track_user`/`_reconfigure_user` |
+| `lib/interactive/menu_user_actions.sh` | 单用户菜单：查看、删除、登录、修改（含 4) 重新配置预装项） |
+| `lib/interactive/menu_modules.sh` | `_modules_menu`：预装模块管理（list/inspect/apply/remove/总览） |
 | `lib/interactive/menu_main.sh` | `interactive_menu`、`show_help` |
 
 每个文件 ≤300 行，便于阅读与 AI 索引；文件头注释说明依赖与副作用。
@@ -54,9 +66,10 @@
 
 | 菜单项 | 作用 |
 |--------|------|
-| 新建用户 | 创建系统用户、SSH、`scripts`、proxy 段、写入 JSON |
-| 已管理用户 | 选择用户后可：查看、删除、进入登录 shell、修改（同步 scripts/proxy、启用/禁用 sudo） |
+| 新建用户 | 创建系统用户、SSH、走 `lib/install_steps/*` 预装项、写入 JSON |
+| 已管理用户 | 选择用户后可：查看、删除、进入登录 shell、修改（Sync、启用/禁用 sudo、**重新配置预装项**） |
 | 未管理用户 | JSON 中 `managed: false` 的用户，以及 **尚无** `managed_users/<名>.json` 的本地 UID 用户（`UID_MIN` 起、非 nologin/false shell）：查看、**纳入管理 (track)**；进入菜单时若无 JSON 会生成 `managed: false` 的占位记录 |
+| 预装模块管理 | 列出全部 `lib/install_steps/*` 模块：在指定用户上 探测/安装/卸载、查看跨用户状态总览、提示如何添加新模块 |
 
 ---
 
@@ -117,7 +130,8 @@ user_management/
 | `HOSTNAME` | 用于生成 SSH Config 的 `Host` 名：`<username>-<HOSTNAME>`（覆盖系统 `hostname` 时可显式设置） |
 | `HOST_IP` | 创建用户时写入的登录 IP；设置后会跳过“选择登录IP”交互，直接使用该值 |
 | `UM_HOME_PARENT` | 创建用户时默认 home 父目录（默认 `/home`）；默认 home 会变成 `${UM_HOME_PARENT}/<username>` |
-| `UM_DEPLOY_SCRIPTS_DEFAULT` | 创建用户时默认是否部署 `~/scripts`（复制 `templates/` 并写入 `.bashrc` proxy 段），默认 `true` |
+| `UM_DEPLOY_SCRIPTS_DEFAULT` | 创建用户时默认是否部署 `~/scripts`（仅复制 `templates/`），默认 `true` |
+| `UM_CONFIGURE_PROXY_DEFAULT` | 创建用户时默认是否在 `.bashrc` 写入 proxy 段（与 scripts 部署解耦），默认 `false` |
 
 ---
 
@@ -199,6 +213,33 @@ ssh testuser-hushine-4090
 ```bash
 UM_SKIP_INTEGRATION=1 ./tests/run.sh
 ```
+
+---
+
+## 添加新预装模块
+
+每个「预装内容」是 `lib/install_steps/<key>.sh` 一个文件，实现 5 个函数：
+
+| 函数 | 作用 |
+|------|------|
+| `um_step_<key>_label` | 中文描述（菜单显示） |
+| `um_step_<key>_default` | 默认是否启用（`true`/`false`，可读 `.env`） |
+| `um_step_<key>_status user home` | 探测：输出 `true`/`false` |
+| `um_step_<key>_apply user home json_file` | 安装/部署 |
+| `um_step_<key>_remove user home json_file` | 卸载/移除 |
+
+操作步骤：
+
+```bash
+cp lib/install_steps/_template.sh.example lib/install_steps/<your_key>.sh
+# 编辑：替换 your_step_name 为 <your_key>，实现 5 个函数
+```
+
+写入用户文件时建议用 `_um_anchor_write/_um_anchor_strip`（`lib/anchors.sh`），以 `# BEGIN user_management <name>` ... `# END user_management <name>` 包裹内容；`remove` 时只清理本模块自己的段，不破坏用户其他配置。
+
+模板里包含 npm 全局包、pipx、apt 系统包、bashrc 片段、用户主目录文件 5 种范式参考。
+
+新模块加进去后，主菜单 `4) 预装模块管理` 会自动列出；用户「修改 → 4) 重新配置预装项」会自动包含它。
 
 ---
 

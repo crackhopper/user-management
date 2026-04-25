@@ -1,12 +1,9 @@
 #!/bin/bash
+# bin/disable-user-sudo.sh — 删除 /etc/sudoers.d/<user>、移出 sudo 组、刷新 JSON
 set -euo pipefail
 
-_bin_here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=../lib/paths.sh
-source "$_bin_here/../lib/paths.sh"
-SCRIPT_DIR="$(um_project_root_from_bin_path "${BASH_SOURCE[0]}")"
-# shellcheck source=../lib/config.sh
-source "$SCRIPT_DIR/lib/config.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")"/.. && pwd)/lib/bootstrap.sh"
+um_bootstrap "${BASH_SOURCE[0]}" json_user_state group_ops
 
 echo "=========================================="
 echo "         禁用 sudo 权限"
@@ -36,8 +33,13 @@ if [[ ! "$choice" =~ ^[0-9]+$ ]] || [[ "$choice" -lt 1 ]] || [[ "$choice" -gt "$
 fi
 
 username="${users[$((choice-1))]}"
+json_file="$MANAGED_USERS_DIR/${username}.json"
 
 sudo rm -f "/etc/sudoers.d/$username"
-sudo deluser "$username" sudo 2>/dev/null || true
+_um_group_remove_user "$username" sudo
+
+if [[ -f "$json_file" ]]; then
+    _merge_json_sudo_from_system "$json_file" "$username" refresh
+fi
 
 echo "已禁用用户 $username 的 sudo（已移除 sudoers 与 sudo 组）"

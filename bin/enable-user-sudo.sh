@@ -1,12 +1,9 @@
 #!/bin/bash
+# bin/enable-user-sudo.sh — 写入 /etc/sudoers.d/<user>（NOPASSWD），并刷新 JSON
 set -euo pipefail
 
-_bin_here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=../lib/paths.sh
-source "$_bin_here/../lib/paths.sh"
-SCRIPT_DIR="$(um_project_root_from_bin_path "${BASH_SOURCE[0]}")"
-# shellcheck source=../lib/config.sh
-source "$SCRIPT_DIR/lib/config.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")"/.. && pwd)/lib/bootstrap.sh"
+um_bootstrap "${BASH_SOURCE[0]}" json_user_state
 
 echo "=========================================="
 echo "         启用 sudo 权限"
@@ -36,8 +33,13 @@ if [[ ! "$choice" =~ ^[0-9]+$ ]] || [[ "$choice" -lt 1 ]] || [[ "$choice" -gt "$
 fi
 
 username="${users[$((choice-1))]}"
+json_file="$MANAGED_USERS_DIR/${username}.json"
 
 echo "$username ALL=(ALL) NOPASSWD: ALL" | sudo tee "/etc/sudoers.d/$username" > /dev/null
 sudo chmod 440 "/etc/sudoers.d/$username"
+
+if [[ -f "$json_file" ]]; then
+    _merge_json_sudo_from_system "$json_file" "$username" refresh
+fi
 
 echo "已启用用户 $username 的 sudo（NOPASSWD：/etc/sudoers.d/$username；未加入 sudo 组）"

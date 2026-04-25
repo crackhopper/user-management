@@ -11,16 +11,29 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # shellcheck source=lib/config.sh
 source "$SCRIPT_DIR/lib/config.sh"
+# shellcheck source=lib/json_io.sh
+source "$SCRIPT_DIR/lib/json_io.sh"
 # shellcheck source=lib/json_user_state.sh
 source "$SCRIPT_DIR/lib/json_user_state.sh"
 # shellcheck source=lib/user_json_parse.sh
 source "$SCRIPT_DIR/lib/user_json_parse.sh"
 # shellcheck source=lib/stub_unmanaged_user.sh
 source "$SCRIPT_DIR/lib/stub_unmanaged_user.sh"
+# shellcheck source=lib/anchors.sh
+source "$SCRIPT_DIR/lib/anchors.sh"
+# shellcheck source=lib/proxy_block.sh
+source "$SCRIPT_DIR/lib/proxy_block.sh"
+# shellcheck source=lib/group_ops.sh
+source "$SCRIPT_DIR/lib/group_ops.sh"
+# shellcheck source=lib/install_steps.sh
+source "$SCRIPT_DIR/lib/install_steps.sh"
+_um_steps_load
 # shellcheck source=lib/ops/create_user.sh
 source "$SCRIPT_DIR/lib/ops/create_user.sh"
 # shellcheck source=lib/ops/delete_user.sh
 source "$SCRIPT_DIR/lib/ops/delete_user.sh"
+# shellcheck source=lib/interactive/prompts.sh
+source "$SCRIPT_DIR/lib/interactive/prompts.sh"
 # shellcheck source=lib/interactive/cmd_add_user.sh
 source "$SCRIPT_DIR/lib/interactive/cmd_add_user.sh"
 # shellcheck source=lib/interactive/menu_user_lists.sh
@@ -29,6 +42,8 @@ source "$SCRIPT_DIR/lib/interactive/menu_user_lists.sh"
 source "$SCRIPT_DIR/lib/interactive/cmd_user_sync_and_sudo.sh"
 # shellcheck source=lib/interactive/menu_user_actions.sh
 source "$SCRIPT_DIR/lib/interactive/menu_user_actions.sh"
+# shellcheck source=lib/interactive/menu_modules.sh
+source "$SCRIPT_DIR/lib/interactive/menu_modules.sh"
 # shellcheck source=lib/interactive/menu_main.sh
 source "$SCRIPT_DIR/lib/interactive/menu_main.sh"
 

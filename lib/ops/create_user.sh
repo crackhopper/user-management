@@ -1,8 +1,9 @@
-# lib/ops/create_user.sh — 创建托管用户（无交互；依赖已 source 的 lib/config.sh）
+# lib/ops/create_user.sh — 创建托管用户（无交互）
 # -----------------------------------------------------------------------------
-# um_create_managed_user：执行 useradd、sudoers、docker、SSH、(可选)deploy scripts/proxy、JSON
+# 依赖（已 source）：lib/config.sh、lib/json_io.sh、lib/anchors.sh、
+#                  lib/install_steps.sh + lib/install_steps/*.sh
+# um_create_managed_user：useradd → 走 install steps → 写 JSON
 # 输出：UM_CREATED_JSON_FILE、UM_SSH_CONFIG_SNIPPET
-# 标记与 sed 锚点使用 config 中的 UM_PROXY_BEGIN / UM_PROXY_END
 # -----------------------------------------------------------------------------
 
 um_create_managed_user() {
@@ -17,6 +18,9 @@ um_create_managed_user() {
     local selected_ip="$9"
     local ssh_port="${10}"
     local deploy_scripts="${11:-true}"
+    local configure_proxy="${12:-false}"
+    local user_comment="${13:-}"
+    local login_shell="${14:-/bin/bash}"
 
     UM_CREATED_JSON_FILE=""
     UM_SSH_CONFIG_SNIPPET=""
@@ -30,35 +34,54 @@ um_create_managed_user() {
     home_parent="$(dirname "$home_dir")"
     sudo mkdir -p "$home_parent"
 
-    sudo useradd -m -d "$home_dir" -s /bin/bash "$username"
+    sudo useradd -m -U -d "$home_dir" -s "$login_shell" -c "$user_comment" "$username"
     echo "$username:$password" | sudo chpasswd
 
-    if [[ "$has_sudo_flag" == "true" ]]; then
-        echo "$username ALL=(ALL) NOPASSWD: ALL" | sudo tee "/etc/sudoers.d/$username" > /dev/null
-        sudo chmod 440 "/etc/sudoers.d/$username"
-    fi
+    local json_file="$MANAGED_USERS_DIR/${username}.json"
+
+    # 解释 has_sudo_flag 三态：
+    #   true | nopasswd  → sudoers apply（NOPASSWD）
+    #   password         → sudoers apply（要密码）
+    #   false | none | 空 → 不写 sudoers
+    local _sudo_mode="none"
+    case "$has_sudo_flag" in
+        true|nopasswd)
+            _sudo_mode="nopasswd"
+            UM_SUDO_REQUIRE_PASSWORD=false \
+                _um_step_call sudoers apply "$username" "$home_dir" "$json_file"
+            ;;
+        password)
+            _sudo_mode="password"
+            UM_SUDO_REQUIRE_PASSWORD=true \
+                _um_step_call sudoers apply "$username" "$home_dir" "$json_file"
+            ;;
+        *) ;;
+    esac
 
     if [[ "$has_docker_flag" == "true" ]]; then
-        sudo usermod -aG docker "$username"
+        _um_step_call docker_group apply "$username" "$home_dir" "$json_file"
     fi
 
-    sudo mkdir -p "$home_dir/.ssh"
-    echo "$authorized_keys" | sudo tee "$home_dir/.ssh/authorized_keys" > /dev/null
-    sudo chmod 600 "$home_dir/.ssh/authorized_keys"
-    sudo chown -R "$username:$username" "$home_dir/.ssh"
+    UM_AUTHORIZED_KEYS="$authorized_keys" \
+        _um_step_call authorized_keys apply "$username" "$home_dir" "$json_file"
+    unset UM_AUTHORIZED_KEYS
 
     if [[ "$deploy_scripts" == "true" ]]; then
-        sudo cp -r "$SCRIPTS_SRC" "$home_dir/scripts"
-        sudo chown -R "$username:$username" "$home_dir/scripts"
+        _um_step_call scripts_dir apply "$username" "$home_dir" "$json_file"
+    fi
 
-        if [[ -f "$SCRIPTS_SRC/proxy.sh" ]]; then
-            {
-                echo ""
-                echo "$UM_PROXY_BEGIN"
-                cat "$SCRIPTS_SRC/proxy.sh"
-                echo "$UM_PROXY_END"
-            } | sudo tee -a "$home_dir/.bashrc" > /dev/null
-        fi
+    if [[ "$configure_proxy" == "true" ]]; then
+        _um_step_call proxy_bashrc apply "$username" "$home_dir" "$json_file"
+    fi
+
+    # 额外 steps：UM_STEPS_EXTRA 是逗号分隔 step key 列表（由 cmd_add 等设置）
+    if [[ -n "${UM_STEPS_EXTRA:-}" ]]; then
+        local _extra_arr _extra_key
+        IFS=',' read -ra _extra_arr <<< "$UM_STEPS_EXTRA"
+        for _extra_key in "${_extra_arr[@]}"; do
+            [[ -z "$_extra_key" ]] && continue
+            _um_step_call "$_extra_key" apply "$username" "$home_dir" "$json_file" || true
+        done
     fi
 
     local ssh_host_name="${username}-${HOST_NAME}"
@@ -69,22 +92,13 @@ um_create_managed_user() {
     IdentityFile ~/.ssh/$key_type
 "
 
-    local json_file="$MANAGED_USERS_DIR/${username}.json"
-    cat > "$json_file" << EOF
-{
-  "username": "$username",
-  "home": "$home_dir",
-  "sudo_group": false,
-  "sudo_sudoers": $has_sudo_flag,
-  "docker": $has_docker_flag,
-  "login_ips": ["${selected_ip}:${ssh_port}"],
-  "key_type": "$key_type",
-  "key_type_inferred": $key_type_inferred,
-  "authorized_keys": "$authorized_keys",
-  "created_at": "$(date -Iseconds)",
-  "managed": true
-}
-EOF
+    # sudo_sudoers 字段：是否实际写了 sudoers 文件（none 时为 false）
+    local _sudo_sudoers_flag="false"
+    [[ "$_sudo_mode" != "none" ]] && _sudo_sudoers_flag="true"
+
+    _um_json_write_user "$json_file" "$username" "$home_dir" "$_sudo_sudoers_flag" "$has_docker_flag" \
+        "${selected_ip}:${ssh_port}" "$key_type" "$key_type_inferred" "$authorized_keys" \
+        "$user_comment" "$login_shell" "$_sudo_mode"
     UM_CREATED_JSON_FILE="$json_file"
 }
 
