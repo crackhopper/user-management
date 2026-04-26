@@ -30,7 +30,7 @@ cmd_add() {
     local default_ssh_port ssh_port default_login_ip selected_ip
     local deploy_scripts_flag configure_proxy_flag has_sudo_flag has_docker_flag
     local authorized_keys default_key_type key_type key_type_inferred
-    local jump_to_enabled jump_to_sites_input
+    local jump_to_enabled="false" jump_to_sites_input=""
 
     _ask_required "用户名" || return
     username="$ANSWER"
