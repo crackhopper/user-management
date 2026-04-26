@@ -30,6 +30,7 @@ cmd_add() {
     local default_ssh_port ssh_port default_login_ip selected_ip
     local deploy_scripts_flag configure_proxy_flag has_sudo_flag has_docker_flag
     local authorized_keys default_key_type key_type key_type_inferred
+    local jump_to_enabled jump_to_sites_input
 
     _ask_required "用户名" || return
     username="$ANSWER"
@@ -107,6 +108,14 @@ cmd_add() {
     _ask_yn "默认安装 uv（pipx 装；清华源）" "true" || return
     [[ "$ANSWER" == "true" ]] && extra_steps+=(uv)
 
+    _ask_yn "是否启用 jump-to 命令（扫描 ~/.ssh/config 并登录站点）" "false" || return
+    jump_to_enabled="$ANSWER"
+    if [[ "$jump_to_enabled" == "true" ]]; then
+        _ask_default "jump-to 初始站点（逗号分隔 ssh config Host，如 xdg-sg2,xdg-us1；可空）" "" || return
+        jump_to_sites_input="$ANSWER"
+        extra_steps+=(jump_to)
+    fi
+
     echo "authorized_keys (单行公钥，留空跳过；后续可在「模块管理 → authorized_keys」补)"
     _ask_default ">" "" || return
     authorized_keys="$ANSWER"
@@ -129,9 +138,10 @@ cmd_add() {
     extras_csv="$(IFS=,; echo "${extra_steps[*]}")"
 
     UM_STEPS_EXTRA="$extras_csv" \
+    UM_JUMP_TO_TARGETS="$jump_to_sites_input" \
         um_create_managed_user "$username" "$password" "$home_dir" "$has_sudo_flag" "$has_docker_flag" \
-        "$authorized_keys" "$key_type" "$key_type_inferred" "$selected_ip" "$ssh_port" \
-        "$deploy_scripts_flag" "$configure_proxy_flag" "$user_comment" "$login_shell"
+            "$authorized_keys" "$key_type" "$key_type_inferred" "$selected_ip" "$ssh_port" \
+            "$deploy_scripts_flag" "$configure_proxy_flag" "$user_comment" "$login_shell"
 
     echo
     echo "=========================================="

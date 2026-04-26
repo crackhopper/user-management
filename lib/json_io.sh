@@ -9,7 +9,9 @@
 #                     <authorized_keys> <comment> <shell> [sudo_mode]
 # login_ips_csv: 逗号分隔 "ip:port" 列表
 # sudo_mode: nopasswd | password | none（缺省按 sudo_sudoers 推断）
-# 字段：上述 + sudo_group=false（创建期 sudoers 走独立路径）+ created_at + managed=true
+# 额外可选 env：
+#   UM_JSON_JUMP_TO_SITES=逗号分隔站点列表（如 xdg-sg2,xdg-us1）
+# 字段：上述 + jump_to_sites + sudo_group=false（创建期 sudoers 走独立路径）+ created_at + managed=true
 _um_json_write_user() {
     local out_path="$1"
     local username="$2"
@@ -41,6 +43,7 @@ _um_json_write_user() {
     UM_JSON_AUTH_KEYS="$authorized_keys" \
     UM_JSON_COMMENT="$user_comment" \
     UM_JSON_SHELL="$login_shell" \
+    UM_JSON_JUMP_TO_SITES="${UM_JSON_JUMP_TO_SITES:-}" \
     python3 - <<'PY'
 import json
 import os
@@ -51,6 +54,8 @@ def asbool(v):
 
 login_ips_csv = os.environ.get("UM_JSON_LOGIN_IPS", "")
 login_ips = [s for s in (item.strip() for item in login_ips_csv.split(",")) if s]
+jump_to_sites_csv = os.environ.get("UM_JSON_JUMP_TO_SITES", "")
+jump_to_sites = [s for s in (item.strip() for item in jump_to_sites_csv.split(",")) if s]
 
 sudo_sudoers_v = asbool(os.environ.get("UM_JSON_SUDO_SUDOERS", "false"))
 sudo_mode_v = os.environ.get("UM_JSON_SUDO_MODE", "")
@@ -70,6 +75,7 @@ d = {
     "authorized_keys": os.environ.get("UM_JSON_AUTH_KEYS", ""),
     "comment": os.environ.get("UM_JSON_COMMENT", ""),
     "shell": os.environ.get("UM_JSON_SHELL", "/bin/bash"),
+    "jump_to_sites": jump_to_sites,
     "created_at": datetime.now().astimezone().isoformat(timespec="seconds"),
     "managed": True,
 }

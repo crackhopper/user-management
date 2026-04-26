@@ -58,6 +58,7 @@ _other_user_menu() {
         echo
         echo "  1) 查看"
         echo "  2) 纳入管理 (track)"
+        echo "  3) jump-to 管理"
         echo
         echo "  0) 返回"
         echo
@@ -67,6 +68,7 @@ _other_user_menu() {
         case "$choice" in
             1) _user_view "$username" "$json_file" ;;
             2) _track_user "$username" "$json_file" ;;
+            3) _jump_to_user_menu "$username" "$json_file" ;;
             0) return ;;
             *) echo "无效选择" ;;
         esac
@@ -165,6 +167,7 @@ _user_modify_menu() {
         echo "  3) 禁用 sudo（移除 sudoers 与 sudo 组）"
         echo "  4) 重新配置预装项（逐项 apply/remove）"
         echo "  5) 公钥管理（list / add / delete）"
+        echo "  6) jump-to 管理（启用命令 / 开通站点 / 重写配置）"
         echo
         echo "  0) 返回"
         echo
@@ -177,6 +180,7 @@ _user_modify_menu() {
             3) _disable_sudo "$username" ;;
             4) _reconfigure_user "$username" "$json_file" ;;
             5) _user_keys_menu "$username" "$json_file" ;;
+            6) _jump_to_user_menu "$username" "$json_file" ;;
             0) return ;;
             *) echo "无效选择" ;;
         esac

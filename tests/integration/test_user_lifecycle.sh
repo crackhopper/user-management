@@ -60,6 +60,7 @@ DEPLOY_SCRIPTS="true"
 CONFIGURE_PROXY="false"
 USER_COMMENT="integration-test"
 LOGIN_SHELL="/bin/bash"
+JUMP_TO_TARGETS="localhost"
 
 cleanup() {
     if id "$TEST_USER" &>/dev/null; then
@@ -70,17 +71,24 @@ cleanup() {
 trap cleanup EXIT
 
 echo ">>> create $TEST_USER ..."
-um_create_managed_user "$TEST_USER" "$TEST_PASS" "$HOME_DIR" "$HAS_SUDO" "$HAS_DOCKER" \
-    "$FAKE_PUB" "$KEY_TYPE" "$KEY_INF" "$SELECTED_IP" "$SSH_PORT" "$DEPLOY_SCRIPTS" "$CONFIGURE_PROXY" \
-    "$USER_COMMENT" "$LOGIN_SHELL"
+UM_STEPS_EXTRA="jump_to" \
+UM_JUMP_TO_TARGETS="$JUMP_TO_TARGETS" \
+UM_JUMP_TO_SKIP_REMOTE="true" \
+    um_create_managed_user "$TEST_USER" "$TEST_PASS" "$HOME_DIR" "$HAS_SUDO" "$HAS_DOCKER" \
+        "$FAKE_PUB" "$KEY_TYPE" "$KEY_INF" "$SELECTED_IP" "$SSH_PORT" "$DEPLOY_SCRIPTS" "$CONFIGURE_PROXY" \
+        "$USER_COMMENT" "$LOGIN_SHELL"
 
 [[ -n "$UM_CREATED_JSON_FILE" ]] || _fail "UM_CREATED_JSON_FILE empty"
 [[ -f "$UM_CREATED_JSON_FILE" ]] || _fail "json not created: $UM_CREATED_JSON_FILE"
 
 id "$TEST_USER" &>/dev/null || _fail "system user missing"
 _assert_dir "$HOME_DIR/scripts"
+sudo test -f "$HOME_DIR/.ssh/config" || _fail "missing file: $HOME_DIR/.ssh/config"
+sudo grep -q "Host um-jump-localhost" "$HOME_DIR/.ssh/config" || _fail "jump-to ssh config"
+sudo grep -q "alias jump-to='__um_jump_to'" "$HOME_DIR/.bashrc" || _fail "jump-to bashrc alias"
 grep -q "\"username\": \"$TEST_USER\"" "$UM_CREATED_JSON_FILE" || _fail "username in json"
 grep -q '"managed": true' "$UM_CREATED_JSON_FILE" || _fail "managed flag"
+grep -q '"jump_to_sites": \[' "$UM_CREATED_JSON_FILE" || _fail "jump_to_sites field"
 
 echo ">>> delete $TEST_USER ..."
 trap - EXIT

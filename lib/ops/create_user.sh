@@ -96,9 +96,10 @@ um_create_managed_user() {
     local _sudo_sudoers_flag="false"
     [[ "$_sudo_mode" != "none" ]] && _sudo_sudoers_flag="true"
 
-    _um_json_write_user "$json_file" "$username" "$home_dir" "$_sudo_sudoers_flag" "$has_docker_flag" \
-        "${selected_ip}:${ssh_port}" "$key_type" "$key_type_inferred" "$authorized_keys" \
-        "$user_comment" "$login_shell" "$_sudo_mode"
+    UM_JSON_JUMP_TO_SITES="${UM_JUMP_TO_TARGETS:-}" \
+        _um_json_write_user "$json_file" "$username" "$home_dir" "$_sudo_sudoers_flag" "$has_docker_flag" \
+            "${selected_ip}:${ssh_port}" "$key_type" "$key_type_inferred" "$authorized_keys" \
+            "$user_comment" "$login_shell" "$_sudo_mode"
     UM_CREATED_JSON_FILE="$json_file"
 }
 
