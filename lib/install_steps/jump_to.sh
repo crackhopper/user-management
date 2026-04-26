@@ -84,20 +84,37 @@ _um_jump_to_alias() {
     printf 'um-jump-%s' "$site"
 }
 
+_um_jump_to_key_name() {
+    echo "id_ed25519_jump_to"
+}
+
 _um_jump_to_ensure_local_key() {
     local user="$1"
+    local key_name
     local pubkey
 
+    key_name="$(_um_jump_to_key_name)"
     pubkey="$(_um_user_sh "$user" '
 umask 077
 mkdir -p "$HOME/.ssh"
 chmod 700 "$HOME/.ssh"
-if [[ ! -f "$HOME/.ssh/id_ed25519.pub" ]]; then
-    ssh-keygen -q -t ed25519 -N "" -f "$HOME/.ssh/id_ed25519" -C "$USER@jump-to"
+key_name='"$key_name"'
+key_path="$HOME/.ssh/$key_name"
+if [[ -f "$key_path.pub" && ! -f "$key_path" ]]; then
+    echo "jump-to 私钥缺失: $key_path" >&2
+    exit 1
 fi
-cat "$HOME/.ssh/id_ed25519.pub"
+if [[ ! -f "$key_path" ]]; then
+    ssh-keygen -q -t ed25519 -N "" -f "$key_path" -C "$USER@jump-to"
+fi
+if [[ ! -f "$key_path.pub" ]]; then
+    ssh-keygen -y -f "$key_path" > "$key_path.pub"
+fi
+chmod 600 "$key_path"
+chmod 644 "$key_path.pub"
+cat "$key_path.pub"
 ')"
-    [[ -n "$pubkey" ]] || { echo "生成或读取 $user 的 ~/.ssh/id_ed25519.pub 失败" >&2; return 1; }
+    [[ -n "$pubkey" ]] || { echo "生成或读取 $user 的 ~/.ssh/$key_name(.pub) 失败" >&2; return 1; }
     UM_JUMP_TO_PUBLIC_KEY="$pubkey"
 }
 
@@ -115,9 +132,11 @@ _um_jump_to_ssh_g_value() {
 
 _um_jump_to_render_ssh_config() {
     local user="$1"
+    local key_name
     local site alias host_name port proxy_jump proxy_command host_key_alias strict_host_key_checking
     local rendered=""
 
+    key_name="$(_um_jump_to_key_name)"
     for site in "${JUMP_TO_SITES[@]}"; do
         host_name="$(_um_jump_to_ssh_g_value "$site" hostname)"
         port="$(_um_jump_to_ssh_g_value "$site" port)"
@@ -135,7 +154,7 @@ _um_jump_to_render_ssh_config() {
         rendered+="    HostName $host_name"$'\n'
         rendered+="    Port $port"$'\n'
         rendered+="    User $user"$'\n'
-        rendered+="    IdentityFile ~/.ssh/id_ed25519"$'\n'
+        rendered+="    IdentityFile ~/.ssh/$key_name"$'\n'
         rendered+="    IdentitiesOnly yes"$'\n'
         [[ -n "$proxy_jump" && "$proxy_jump" != "none" ]] && rendered+="    ProxyJump $proxy_jump"$'\n'
         [[ -n "$proxy_command" && "$proxy_command" != "none" ]] && rendered+="    ProxyCommand $proxy_command"$'\n'
