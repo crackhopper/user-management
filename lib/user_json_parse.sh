@@ -29,20 +29,6 @@ _load_user_data() {
     created_at=$(grep '"created_at"' "$json_file" | sed 's/.*: *"\([^"]*\)".*/\1/')
     login_ip=$(grep '"login_ips"' "$json_file" | sed 's/.*: *\[\"\([^:]*\):[^"]*\"\].*/\1/')
     login_port=$(grep '"login_ips"' "$json_file" | sed 's/.*: *\[\"[^:]*:\([^"]*\)\"\].*/\1/')
-    [[ -z "$login_ip" ]] && login_ip="127.0.0.1"
-    [[ -z "$login_port" ]] && login_port="22"
-
-    if [[ -z "$key_type" ]]; then
-        if [[ "$authorized_keys" == ssh-rsa* ]]; then
-            key_type="id_rsa"
-        elif [[ "$authorized_keys" == ssh-ed25519* ]]; then
-            key_type="id_ed25519"
-        else
-            key_type="id_rsa"
-        fi
-        key_type_inferred="true"
-    fi
-
     # python3 兜底：login_ips、authorized_keys 在 JSON 多行 list 格式下 grep+sed 拿不到正确值
     if command -v python3 &>/dev/null; then
         local _vals _ip _port _rest _ak
@@ -68,8 +54,38 @@ PY
         _rest="${_vals#*$'\x1f'}"
         _port="${_rest%%$'\x1f'*}"
         _ak="${_rest#*$'\x1f'}"
-        [[ -n "$_ip" ]] && login_ip="$_ip"
-        [[ -n "$_port" ]] && login_port="$_port"
-        [[ -n "$_ak" ]] && authorized_keys="$_ak"
+        if [[ -n "$_ip" ]]; then
+            login_ip="$_ip"
+        elif [[ "$login_ip" == *'"login_ips"'* ]]; then
+            login_ip=""
+        fi
+
+        if [[ -n "$_port" ]]; then
+            login_port="$_port"
+        elif [[ "$login_port" == *'"login_ips"'* ]]; then
+            login_port=""
+        fi
+
+        authorized_keys="$_ak"
     fi
+
+    if [[ -z "$login_ip" ]]; then
+        login_ip="127.0.0.1"
+    fi
+    if [[ -z "$login_port" ]]; then
+        login_port="22"
+    fi
+
+    if [[ -z "$key_type" ]]; then
+        if [[ "$authorized_keys" == ssh-rsa* ]]; then
+            key_type="id_rsa"
+        elif [[ "$authorized_keys" == ssh-ed25519* ]]; then
+            key_type="id_ed25519"
+        else
+            key_type="id_rsa"
+        fi
+        key_type_inferred="true"
+    fi
+
+    return 0
 }
